@@ -1,0 +1,8 @@
+{
+  "dir": "migrations",
+  "direction": "up",
+  "databaseUrl": { "env": "DATABASE_URL" },
+  "migrationTable": "schema_migrations",
+  "count": Infinity,
+  "createTs": false
+}

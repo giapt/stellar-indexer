@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: stellar_indexer
+      POSTGRES_USER: stellar
+      POSTGRES_PASSWORD: stellar
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stellar -d stellar_indexer"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    ports:
+      - "8080:8080"
+    command: sh -c "npx prisma migrate deploy && npx prisma generate && npm start"
+
+volumes:
+  pgdata:

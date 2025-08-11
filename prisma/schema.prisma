@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SorobanEvent {
+  id             BigInt     @id @default(autoincrement())
+  txHash         String
+  contractId     String
+  ledger         Int
+  topicSignature String
+  topics         Json
+  data           Json?
+  createdAt      DateTime   @default(now())
+
+  @@unique([txHash, contractId, ledger, topicSignature], name: "uq_events_dedupe")
+  @@index([ledger], map: "idx_events_ledger")
+  @@index([contractId], map: "idx_events_contract")
+  @@index([topicSignature], map: "idx_events_signature")
+}
