@@ -10,7 +10,7 @@ type RpcEventRaw = {
   txHash: string;
   contractId?: string;
   ledger: number;
-  topics?: string[];  // base64 XDR (because we request xdrFormat: 'base64')
+  topics?: string[];  // base64 XDR (xdrFormat: 'base64')
   value?: string;     // base64 XDR
 };
 
@@ -55,7 +55,6 @@ function jsonSafe(v: any): any {
   if (v instanceof Uint8Array) return '0x' + Buffer.from(v).toString('hex');
   if (Array.isArray(v)) return v.map(jsonSafe);
   if (typeof v === 'object') {
-    // Soroban address sometimes comes as { address: "G..." }
     if ('address' in v && typeof (v as any).address === 'string') return (v as any).address;
     return Object.fromEntries(Object.entries(v).map(([k, val]) => [k, jsonSafe(val)]));
   }
@@ -73,13 +72,12 @@ function toSigPiece(v: any): string {
 }
 
 /**
- * Fetch events from Soroban RPC in [startLedger, endLedger], using already-built rpcFilters.
- * rpcFilters is the array produced by buildRpcFiltersFromHandlers(...) in handlers.ts
+ * Fetch ALL events from Soroban RPC in [startLedger, endLedger], with NO filters.
+ * Filtering by topic/contract is done later in code via handlers.
  */
 export async function getEventsRange(
   startLedger: number,
-  endLedger: number,
-  rpcFilters: any[]
+  endLedger: number
 ): Promise<GetEventsResult> {
   const reqBody = {
     jsonrpc: '2.0',
@@ -88,15 +86,14 @@ export async function getEventsRange(
     params: {
       startLedger,
       endLedger,
-      filters: rpcFilters,
+      filters: [],         // <- NO FILTERS (catch-all)
       xdrFormat: 'base64', // topics/value come back as base64 XDR
     },
   };
 
   if (DEBUG) {
     console.log('RPC getEvents request window', { startLedger, endLedger });
-    // Avoid huge console spam but show filters structure
-    try { console.dir({ filters: rpcFilters }, { depth: null }); } catch {}
+    // console.dir({ filters: [] }, { depth: null });
   }
 
   const res = await fetch(CFG.rpc, {
@@ -131,23 +128,26 @@ export async function getEventsRange(
 
   // Decode topics + value and make JSON-safe
   const events: DecodedEvent[] = result.events.map((e) => {
-    const decodedTopicsRaw = (e.topics ?? []).map(decodeScValBase64);
-    const decodedValueRaw  = decodeScValBase64(e.value);
+  const topicB64s = (e as any).topics ?? (e as any).topic ?? [];
+  const decodedTopicsRaw = (topicB64s as string[]).map(decodeScValBase64);
 
-    const decodedTopics = jsonSafe(decodedTopicsRaw);
-    const decodedValue  = jsonSafe(decodedValueRaw);
+  const valueB64 = (e as any).value ?? (e as any).data;
+  const decodedValueRaw  = decodeScValBase64(valueB64);
 
-    const topicSignature = (decodedTopicsRaw).map(toSigPiece).join(':');
+  const decodedTopics = jsonSafe(decodedTopicsRaw);
+  const decodedValue  = jsonSafe(decodedValueRaw);
 
-    return {
-      txHash: e.txHash,
-      contractId: e.contractId || '',
-      ledger: e.ledger,
-      topicSignature, // human-readable, e.g. TEAM_FINANCE_TOKEN:mint
-      topics: decodedTopics, // JSON-safe
-      data: decodedValue,    // JSON-safe
-    };
-  });
+  const topicSignature = decodedTopicsRaw.map(toSigPiece).join(':');
+
+  return {
+    txHash: e.txHash,
+    contractId: e.contractId || '',
+    ledger: e.ledger,
+    topicSignature,
+    topics: decodedTopics,
+    data: decodedValue,
+  };
+});
 
   if (DEBUG) {
     console.log('RPC getEvents response', {
@@ -157,36 +157,4 @@ export async function getEventsRange(
   }
 
   return { events, latestLedger: Number(result.latestLedger || 0) };
-}
-
-/**
- * Diagnostic helper: try progressively-relaxed filters to understand 0-event batches.
- *  1) exact filters
- *  2) wildcard topics (keep contractIds)
- *  3) no filters
- */
-export async function probeEvents(
-  startLedger: number,
-  endLedger: number,
-  rpcFilters: any[]
-): Promise<void> {
-  console.log('Probe: exact filters');
-  let r = await getEventsRange(startLedger, endLedger, rpcFilters);
-  console.log(' -> events:', r.events.length);
-
-  if (r.events.length > 0) return;
-
-  const wild = rpcFilters.map((f: any) => ({
-    ...f,
-    topics: Array.isArray(f.topics) ? f.topics.map(() => ['*', '*', '*', '*']) : undefined,
-  }));
-  console.log('Probe: wildcard topics (keep contractIds)');
-  r = await getEventsRange(startLedger, endLedger, wild);
-  console.log(' -> events:', r.events.length);
-
-  if (r.events.length > 0) return;
-
-  console.log('Probe: no filters at all');
-  r = await getEventsRange(startLedger, endLedger, []);
-  console.log(' -> events:', r.events.length);
 }

@@ -1,22 +1,20 @@
+// src/indexer.ts
 import { CFG } from './config';
 import { getLatestLedger } from './horizon';
 import { getEventsRange } from './rpc';
 import { PrismaClient } from '@prisma/client';
 import {
-  StellarHandlerKind, EventHandlerDef, buildRpcFiltersFromHandlers,
+  StellarHandlerKind, EventHandlerDef,
   eventMatchesHandler, DecodedEvent
 } from './handlers';
 
 const prisma = new PrismaClient();
 const CHUNK = 200;
 
-// ==== YOUR HANDLERS (add more as needed) ====
+// ==== Your handlers ====
 async function handleMintEvent(ev: DecodedEvent) {
-  // Example: log or write to an extra table, queue, etc.
   console.log('[Mint]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
-  // You already insert all events below; if you want a special table, do it here with prisma.*
 }
-
 async function handleUpdateMetadataEvent(ev: DecodedEvent) {
   console.log('[UpdateMetadata]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
 }
@@ -25,53 +23,58 @@ const HANDLERS: EventHandlerDef[] = [
   {
     handler: handleMintEvent,
     kind: StellarHandlerKind.Event,
-    filter: {
-      // contractId: 'CCF4...XQHV', // optional narrow
-      topics: ['TEAM_FINANCE_TOKEN','mint','*','*'],
-    },
+    filter: { topics: ['TEAM_FINANCE_TOKEN', 'mint', '*', '*'] },
   },
   {
     handler: handleUpdateMetadataEvent,
     kind: StellarHandlerKind.Event,
-    filter: {
-      topics: ['TEAM_FINANCE_TOKEN','update_metadata','*','*'],
-    },
-  }
+    filter: { topics: ['TEAM_FINANCE_TOKEN', 'update_metadata', '*', '*'] },
+  },
 ];
-// ============================================
+// ========================
 
 export async function runIndexer() {
   let cursor = CFG.startLedger;
-  const rpcFilters = buildRpcFiltersFromHandlers(HANDLERS);
 
   for (;;) {
     try {
       const horizonHead = await getLatestLedger();
       let end = Math.min(cursor + CHUNK - 1, horizonHead);
 
-      const res = await getEventsRange(cursor, end, rpcFilters);
+      // Request ALL events (no filters)
+      const res = await getEventsRange(cursor, end);
 
-      if (!res.events.length && res.rangeHint) {
-        const { min, max } = res.rangeHint;
+      // If outside window, your previous reposition logic can stay here (if you kept it in rpc.ts, expose rangeHint)
+      if (!res.events.length && (res as any).rangeHint) {
+        const { min, max } = (res as any).rangeHint!;
         const newStart = Math.max(min, max - CHUNK + 1);
         console.warn(`Cursor ${cursor}-${end} outside RPC window ${min}-${max}. Repositioning to ${newStart}.`);
         cursor = newStart;
         continue;
       }
 
-      // Optionally, run handler callbacks on matching events
+      // Match events against handlers
+      const matched: DecodedEvent[] = [];
       for (const ev of res.events) {
+        // if (ev.txHash === '64208a4f645089ddecb1cb242affbf519ff934e41e44208709f86a3d24b6afb7') {
+        //     console.log(`Checking event ${ev.txHash}`);
+        //     // console.log('Event topics:', JSON.stringify(res));
+        //     // console.log('Handler:', def);
+        //   }
         for (const def of HANDLERS) {
-          if (eventMatchesHandler(ev as DecodedEvent, def)) {
-            await def.handler(ev as DecodedEvent);
+          
+
+          if (eventMatchesHandler(ev, def)) {
+            matched.push(ev);
+            await def.handler(ev); // run handler
+            break;                 // stop at first match; remove if multiple handlers can apply
           }
         }
       }
 
-      // Persist events (all, or only matches—your choice)
-      if (res.events.length) {
+      if (matched.length) {
         await prisma.sorobanEvent.createMany({
-          data: res.events.map(e => ({
+          data: matched.map(e => ({
             txHash: e.txHash,
             contractId: e.contractId,
             ledger: e.ledger,
@@ -83,7 +86,7 @@ export async function runIndexer() {
         });
       }
 
-      console.log(`Indexed ledgers ${cursor}-${end}: ${res.events.length} events`);
+      console.log(`Indexed ledgers ${cursor}-${end}: total=${res.events.length}, matched=${matched.length}`);
 
       // Wait at RPC head to avoid out-of-range spam
       if (res.latestLedger && end >= res.latestLedger) {
