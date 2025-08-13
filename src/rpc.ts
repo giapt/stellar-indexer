@@ -3,6 +3,7 @@ import fetch from 'node-fetch';
 import { xdr, scValToNative } from '@stellar/stellar-sdk';
 import { CFG } from './config';
 import type { DecodedEvent } from './handlers';
+import { prettyScVal } from './utils/prettyScVal';
 
 const DEBUG = process.env.DEBUG === 'true';
 
@@ -10,8 +11,12 @@ type RpcEventRaw = {
   txHash: string;
   contractId?: string;
   ledger: number;
-  topics?: string[];  // base64 XDR (xdrFormat: 'base64')
-  value?: string;     // base64 XDR
+  // Providers may return topics under `topics` (array of base64 XDR) or `topic`
+  topics?: string[];
+  topic?: string[];
+  // Value field may be `value` or `data` (base64 XDR)
+  value?: string;
+  data?: string;
 };
 
 type RpcOk = {
@@ -31,8 +36,14 @@ type RpcErr = {
 
 type JsonRpcResponse = RpcOk | RpcErr;
 
+// add pretty fields so callers can display Soroban-typed strings
+type DecodedEventPlus = DecodedEvent & {
+  topicsPretty?: string[];
+  dataPretty?: string;
+};
+
 export type GetEventsResult = {
-  events: DecodedEvent[];
+  events: DecodedEventPlus[];
   latestLedger: number;
   rangeHint?: { min: number; max: number };
 };
@@ -55,6 +66,7 @@ function jsonSafe(v: any): any {
   if (v instanceof Uint8Array) return '0x' + Buffer.from(v).toString('hex');
   if (Array.isArray(v)) return v.map(jsonSafe);
   if (typeof v === 'object') {
+    // Soroban address sometimes comes as { address: "G..." }
     if ('address' in v && typeof (v as any).address === 'string') return (v as any).address;
     return Object.fromEntries(Object.entries(v).map(([k, val]) => [k, jsonSafe(val)]));
   }
@@ -86,8 +98,8 @@ export async function getEventsRange(
     params: {
       startLedger,
       endLedger,
-      filters: [],         // <- NO FILTERS (catch-all)
-      xdrFormat: 'base64', // topics/value come back as base64 XDR
+      filters: [],          // NO FILTERS: pull everything for the window
+      xdrFormat: 'base64',  // topics/value come back as base64 XDR
     },
   };
 
@@ -126,28 +138,44 @@ export async function getEventsRange(
     return { events: [], latestLedger: Number(result?.latestLedger || 0) };
   }
 
-  // Decode topics + value and make JSON-safe
-  const events: DecodedEvent[] = result.events.map((e) => {
-  const topicB64s = (e as any).topics ?? (e as any).topic ?? [];
-  const decodedTopicsRaw = (topicB64s as string[]).map(decodeScValBase64);
+  // Decode topics + value and make JSON-safe; also produce pretty-printed strings
+  const events: DecodedEventPlus[] = result.events.map((e) => {
+    // Providers may send `topics` or `topic`
+    const topicB64s = (e.topics ?? e.topic ?? []) as string[];
 
-  const valueB64 = (e as any).value ?? (e as any).data;
-  const decodedValueRaw  = decodeScValBase64(valueB64);
+    // Pretty strings (Soroban-typed) built straight from XDR
+    const topicsPretty = topicB64s.map(b64 => {
+      try { return prettyScVal(xdr.ScVal.fromXDR(b64, 'base64')); }
+      catch { return '<invalid topic XDR>'; }
+    });
 
-  const decodedTopics = jsonSafe(decodedTopicsRaw);
-  const decodedValue  = jsonSafe(decodedValueRaw);
+    const valueB64 = e.value ?? e.data;
+    const dataPretty = (() => {
+      if (!valueB64) return undefined;
+      try { return prettyScVal(xdr.ScVal.fromXDR(valueB64, 'base64')); }
+      catch { return '<invalid value XDR>'; }
+    })();
 
-  const topicSignature = decodedTopicsRaw.map(toSigPiece).join(':');
+    // Native decode → JSON-safe
+    const decodedTopicsRaw = topicB64s.map(decodeScValBase64);
+    const decodedValueRaw  = decodeScValBase64(valueB64);
 
-  return {
-    txHash: e.txHash,
-    contractId: e.contractId || '',
-    ledger: e.ledger,
-    topicSignature,
-    topics: decodedTopics,
-    data: decodedValue,
-  };
-});
+    const decodedTopics = jsonSafe(decodedTopicsRaw);
+    const decodedValue  = jsonSafe(decodedValueRaw);
+
+    const topicSignature = decodedTopicsRaw.map(toSigPiece).join(':');
+
+    return {
+      txHash: e.txHash,
+      contractId: e.contractId || '',
+      ledger: e.ledger,
+      topicSignature,        // e.g., TEAM_FINANCE_TOKEN:mint
+      topics: decodedTopics, // JSON-safe decoded array
+      data: decodedValue,    // JSON-safe decoded value
+      topicsPretty,          // e.g., ['"TEAM_FINANCE_TOKEN"sym','"mint"sym']
+      dataPretty,            // e.g., '{"decimal"sym: 9u32, ...}'
+    };
+  });
 
   if (DEBUG) {
     console.log('RPC getEvents response', {

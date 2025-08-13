@@ -22,3 +22,27 @@ model SorobanEvent {
   @@index([contractId], map: "idx_events_contract")
   @@index([topicSignature], map: "idx_events_signature")
 }
+
+model TeamFinanceToken {
+  id            BigInt   @id @default(autoincrement())
+  blockHeight   Int
+  sequence      Int
+  address       String
+  owner         String
+  timestamp     BigInt
+  txHash        String
+  contractId    String
+  
+  name          String
+  symbol        String
+  totalSupply   BigInt
+  decimals      Int
+  ipfs          String
+  createdAt     DateTime @default(now())
+
+  envelopeXdr   String
+
+  @@unique([txHash, address, blockHeight], name: "uq_token_mint_dedupe")
+  @@index([address], map: "idx_token_mint_contract")
+  @@index([blockHeight], map: "idx_token_mint_ledger")
+}
