@@ -16,5 +16,5 @@ RUN npx prisma generate
 COPY . .
 RUN npm run build
 
-ENV NODE_ENV=production
+ENV NODE_ENV=dev
 CMD ["node", "dist/main.js"]
