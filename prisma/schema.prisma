@@ -26,7 +26,7 @@ model SorobanEvent {
   @@index([topicSignature], map: "idx_events_signature")
 }
 
-model TeamFinanceToken {
+model teamFinanceTokens {
   id            BigInt   @id @default(autoincrement())
   blockHeight   Int
   sequence      Int

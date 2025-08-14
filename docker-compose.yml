@@ -1,31 +1,39 @@
 services:
   db:
     image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: stellar_indexer
-      POSTGRES_USER: stellar
-      POSTGRES_PASSWORD: stellar
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    env_file:
+      - .env
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U stellar -d stellar_indexer"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
-      retries: 30
+      retries: 20
 
-  app:
-    build: .
+  hasura:
+    image: hasura/graphql-engine:v2.43.0
+    restart: unless-stopped
+    ports:
+      - "${HASURA_EXTERNAL_PORT:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: public
     depends_on:
-      db:
-        condition: service_healthy
+      - db
+
+  indexer:
+    build: .
+    restart: unless-stopped
     env_file: .env
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-    ports:
-      - "8080:8080"
-    command: sh -c "npx prisma migrate deploy && npx prisma generate && npm start"
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      - db
 
-volumes:
-  pgdata:

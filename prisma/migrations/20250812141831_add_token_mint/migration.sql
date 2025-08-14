@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "TeamFinanceToken" (
+CREATE TABLE "teamFinanceTokens" (
     "id" BIGSERIAL NOT NULL,
     "blockHeight" INTEGER NOT NULL,
     "sequence" INTEGER NOT NULL,
@@ -16,14 +16,14 @@ CREATE TABLE "TeamFinanceToken" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "envelopeXdr" TEXT NOT NULL,
 
-    CONSTRAINT "TeamFinanceToken_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "teamFinanceTokens_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
-CREATE INDEX "idx_token_mint_contract" ON "TeamFinanceToken"("address");
+CREATE INDEX "idx_token_mint_contract" ON "teamFinanceTokens"("address");
 
 -- CreateIndex
-CREATE INDEX "idx_token_mint_ledger" ON "TeamFinanceToken"("blockHeight");
+CREATE INDEX "idx_token_mint_ledger" ON "teamFinanceTokens"("blockHeight");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "TeamFinanceToken_txHash_address_blockHeight_key" ON "TeamFinanceToken"("txHash", "address", "blockHeight");
+CREATE UNIQUE INDEX "teamFinanceTokens_txHash_address_blockHeight_key" ON "teamFinanceTokens"("txHash", "address", "blockHeight");
