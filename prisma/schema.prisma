@@ -38,14 +38,12 @@ model teamFinanceTokens {
   
   name          String
   symbol        String
-  totalSupply   BigInt
+  totalSupply   String
   decimals      Int
   ipfs          String
   createdAt     DateTime @default(now())
 
   envelopeXdr   String
 
-  @@unique([txHash, address, blockHeight], name: "uq_token_mint_dedupe")
   @@index([address], map: "idx_token_mint_contract")
-  @@index([blockHeight], map: "idx_token_mint_ledger")
 }

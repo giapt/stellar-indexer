@@ -8,10 +8,11 @@ import {
   eventMatchesHandler, DecodedEvent
 } from './handlers';
 import { decodeEnvelopeForTx } from './utils/tx-utils';
+import { jsonPrismaSafe, toDbBigInt } from './utils/json-safe';
 
 const DEBUG = process.env.DEBUG === 'true';
 const prisma = new PrismaClient();
-const CHUNK = 50;
+const CHUNK = 100;
 
 // ==== Your handlers ====
 async function handleMintEvent(ev: DecodedEvent) {
@@ -23,20 +24,20 @@ async function handleMintEvent(ev: DecodedEvent) {
     let name = 'Unknown';
     let symbol = 'Unknown';
     let decimals = 0; 
-    let totalSupply = BigInt(0);
+    let totalSupply = "0";
     let ipfs = '';
     if (constructorArgs?.[0]?.address) {
       name = constructorArgs[2]?.string || 'Unknown';
       symbol = constructorArgs[3]?.string || 'Unknown';
       decimals = constructorArgs[1]?.u32 || 0;
-      totalSupply = BigInt(constructorArgs[4]?.i128) || BigInt(0);
+      totalSupply = constructorArgs[4]?.i128 || "0";
       ipfs = constructorArgs[5]?.string || '';
     }
     if (constructorArgs?.[4]?.address) {
       name = constructorArgs[0]?.string || 'Unknown';
       symbol = constructorArgs[1]?.string || 'Unknown';
       decimals = constructorArgs[2]?.u32 || 0;
-      totalSupply = BigInt(constructorArgs[3]?.i128) || BigInt(0);
+      totalSupply = constructorArgs[3]?.i128 || "0";
       ipfs = constructorArgs[5]?.string || '';
     }
     if (DEBUG) {

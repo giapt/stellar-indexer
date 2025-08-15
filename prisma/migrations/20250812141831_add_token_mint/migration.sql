@@ -10,7 +10,7 @@ CREATE TABLE "teamFinanceTokens" (
     "contractId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "symbol" TEXT NOT NULL,
-    "totalSupply" BIGINT NOT NULL,
+    "totalSupply" TEXT NOT NULL,
     "decimals" INTEGER NOT NULL,
     "ipfs" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -21,9 +21,3 @@ CREATE TABLE "teamFinanceTokens" (
 
 -- CreateIndex
 CREATE INDEX "idx_token_mint_contract" ON "teamFinanceTokens"("address");
-
--- CreateIndex
-CREATE INDEX "idx_token_mint_ledger" ON "teamFinanceTokens"("blockHeight");
-
--- CreateIndex
-CREATE UNIQUE INDEX "teamFinanceTokens_txHash_address_blockHeight_key" ON "teamFinanceTokens"("txHash", "address", "blockHeight");

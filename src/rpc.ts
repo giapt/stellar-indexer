@@ -98,6 +98,9 @@ export async function getEventsRange(
     params: {
       startLedger,
       endLedger,
+      pagination: {
+        limit: 2000,
+      },
       filters: [],          // NO FILTERS: pull everything for the window
       xdrFormat: 'base64',  // topics/value come back as base64 XDR
     },
