@@ -20,7 +20,6 @@ model SorobanEvent {
   data           Json?
   createdAt      DateTime   @default(now())
 
-  @@unique([txHash, contractId, ledger, topicSignature], name: "uq_events_dedupe")
   @@index([ledger], map: "idx_events_ledger")
   @@index([contractId], map: "idx_events_contract")
   @@index([topicSignature], map: "idx_events_signature")

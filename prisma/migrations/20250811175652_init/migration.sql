@@ -20,6 +20,3 @@ CREATE INDEX "idx_events_contract" ON "SorobanEvent"("contractId");
 
 -- CreateIndex
 CREATE INDEX "idx_events_signature" ON "SorobanEvent"("topicSignature");
-
--- CreateIndex
-CREATE UNIQUE INDEX "SorobanEvent_txHash_contractId_ledger_topicSignature_key" ON "SorobanEvent"("txHash", "contractId", "ledger", "topicSignature");
