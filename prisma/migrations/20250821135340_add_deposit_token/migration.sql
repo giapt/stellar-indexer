@@ -48,6 +48,7 @@ CREATE TABLE "deposits" (
     "unlockTime" BIGINT NOT NULL,
     "txHash" TEXT NOT NULL,
     "timestamp" BIGINT NOT NULL,
+    "senderAddress" TEXT NOT NULL,
     "token_owner" TEXT,
     "token_name" TEXT NOT NULL,
     "token_symbol" TEXT NOT NULL,

@@ -154,6 +154,7 @@ export async function handleDepositEvent(ev: DecodedEvent) {
         id: `${depositId.toString()}-stellar-testnet`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
+        senderAddress: args?.[1]?.address || '',
         lockContractAddress: ev.contractId,
         depositId: depositId.toString(),
         tokenAddress: args?.[1]?.address || '',
