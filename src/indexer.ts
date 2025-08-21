@@ -2,75 +2,16 @@
 import { CFG } from './config';
 import { getLatestLedger } from './horizon';
 import { getEventsRange } from './rpc';
-import { PrismaClient } from '@prisma/client';
 import {
   StellarHandlerKind, EventHandlerDef,
   eventMatchesHandler, DecodedEvent
 } from './handlers';
-import { decodeEnvelopeForTx } from './utils/tx-utils';
-import { jsonPrismaSafe, toDbBigInt } from './utils/json-safe';
+// import { jsonPrismaSafe, toDbBigInt } from './utils/json-safe';
+import { handleDepositEvent, handleUpdateMetadataEvent, handleMintEvent } from './mappings/mappingHandlers';
+import { prisma } from './prismaConfig'; // Ensure you have a Prisma client instance
 
-const DEBUG = process.env.DEBUG === 'true';
-const prisma = new PrismaClient();
 const CHUNK = 100;
 
-// ==== Your handlers ====
-async function handleMintEvent(ev: DecodedEvent) {
-  console.log('[Mint]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
-  try {
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
-    const constructorArgs =
-    data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.create_contract_v2?.constructor_args;
-    let name = 'Unknown';
-    let symbol = 'Unknown';
-    let decimals = 0; 
-    let totalSupply = "0";
-    let ipfs = '';
-    if (constructorArgs?.[0]?.address) {
-      name = constructorArgs[2]?.string || 'Unknown';
-      symbol = constructorArgs[3]?.string || 'Unknown';
-      decimals = constructorArgs[1]?.u32 || 0;
-      totalSupply = constructorArgs[4]?.i128 || "0";
-      ipfs = constructorArgs[5]?.string || '';
-    }
-    if (constructorArgs?.[4]?.address) {
-      name = constructorArgs[0]?.string || 'Unknown';
-      symbol = constructorArgs[1]?.string || 'Unknown';
-      decimals = constructorArgs[2]?.u32 || 0;
-      totalSupply = constructorArgs[3]?.i128 || "0";
-      ipfs = constructorArgs[5]?.string || '';
-    }
-    if (DEBUG) {
-      console.log('[Mint] constructor args:', constructorArgs);
-      console.log('[Mint] decoded envelope', ev.contractId, constructorArgs[0]?.string);
-    }
-
-    await prisma.teamFinanceTokens.create({
-      data: {
-        txHash: ev.txHash,
-        contractId: ev.contractId,
-        address: ev.contractId,
-        blockHeight: ev.ledger,
-        sequence: ev.ledger,
-        owner: ev.data,
-        timestamp: BigInt(timestamp), // Convert to BigInt if needed
-        // timestamp: BigInt(Date.parse(ev.ledger.toString())),
-        name,
-        symbol,
-        decimals,
-        totalSupply,
-        ipfs,
-        envelopeXdr,
-      }
-    });
-
-  } catch (e) {
-    console.error('[Mint] envelope decode failed', ev.txHash, e);
-  }
-}
-async function handleUpdateMetadataEvent(ev: DecodedEvent) {
-  console.log('[UpdateMetadata]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
-}
 
 const HANDLERS: EventHandlerDef[] = [
   {
@@ -82,6 +23,11 @@ const HANDLERS: EventHandlerDef[] = [
     handler: handleUpdateMetadataEvent,
     kind: StellarHandlerKind.Event,
     filter: { topics: ['TEAM_FINANCE_TOKEN', 'update_metadata', '*', '*'] },
+  },
+  {
+    handler: handleDepositEvent,
+    kind: StellarHandlerKind.Event,
+    filter: { topics: ['TEAM_FINANCE_LOCKING', 'deposit', '*', '*'] },
   },
 ];
 // ========================
@@ -126,6 +72,7 @@ export async function runIndexer() {
       if (matched.length) {
         await prisma.sorobanEvent.createMany({
           data: matched.map(e => ({
+            network: 'stellar-testnet', // Adjust as needed
             txHash: e.txHash,
             contractId: e.contractId,
             ledger: e.ledger,
@@ -138,6 +85,7 @@ export async function runIndexer() {
       }
 
       console.log(`Indexed ledgers ${cursor}-${end}: total=${res.events.length}, matched=${matched.length}`);
+      // todo : check events length > 10000 then reset cursor
 
       // Wait at RPC head to avoid out-of-range spam
       if (res.latestLedger && end >= res.latestLedger) {

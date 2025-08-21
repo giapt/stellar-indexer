@@ -62,6 +62,12 @@ Reset database (truncate tables & re-run migrations)
 npm run reset:db
 ```
 
+Add migration
+```bash
+update schema.prisma
+npx prisma migrate dev -n migration_name
+```
+
 ## Development
 Run the indexer and GraphQL server in dev mode:
 

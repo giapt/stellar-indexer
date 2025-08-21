@@ -19,6 +19,7 @@ model SorobanEvent {
   topics         Json
   data           Json?
   createdAt      DateTime   @default(now())
+  network        String
 
   @@index([ledger], map: "idx_events_ledger")
   @@index([contractId], map: "idx_events_contract")
@@ -26,15 +27,16 @@ model SorobanEvent {
 }
 
 model teamFinanceTokens {
-  id            BigInt   @id @default(autoincrement())
+  id            String  @id
+  network       String
   blockHeight   Int
   sequence      Int
   address       String
-  owner         String
   timestamp     BigInt
   txHash        String
   contractId    String
   
+  owner         String
   name          String
   symbol        String
   totalSupply   String
@@ -45,4 +47,64 @@ model teamFinanceTokens {
   envelopeXdr   String
 
   @@index([address], map: "idx_token_mint_contract")
+}
+
+model DepositDetail {
+  id                        String  @id
+  network                   String
+  tokenAddress              String
+  withdrawalAddress         String
+  tokenAmount               BigInt
+  unlockTime                BigInt
+  withdrawn                 Boolean
+  tokenId                   BigInt
+  isNFT                     Boolean
+  migratedLockDepositId     BigInt
+  isNFTMinted               Boolean
+
+}
+
+model deposits {
+  id                        String  @id
+  network                   String
+  blockHeight               Int
+  sequence                  Int
+  lockContractAddress       String
+  depositId                 String
+  tokenAddress              String
+  withdrawalAddress         String
+  amount                    String
+  unlockTime                BigInt
+  txHash                    String
+  timestamp                 BigInt
+
+  token_owner               String?
+  token_name                String
+  token_symbol              String
+  token_totalSupply         String
+  token_decimals            Int
+  token_ipfs                String?
+
+  deposit_withdrawn         Boolean
+  deposit_tokenId           BigInt
+  deposit_isNFT             Boolean
+  deposit_migratedLockDepositId     BigInt
+  deposit_isNFTMinted               Boolean
+
+  createdAt                 DateTime @default(now())
+
+  @@index([depositId], map: "deposit_idx_lock_contract")
+}
+
+model token {
+  id            String  @id
+  network       String
+  address       String  
+  owner         String
+  name          String
+  symbol        String
+  totalSupply   String
+  decimals      Int
+  ipfs          String
+  createdAt     DateTime @default(now())
 }
