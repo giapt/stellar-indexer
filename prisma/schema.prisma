@@ -143,3 +143,24 @@ model stakingPools {
   rewardToken_ipfs                String?
   poolIndex                       BigInt
 }
+
+model multisendTokens {
+  id                              String  @id
+  network                         String
+  blockHeight                     Int
+  sequence                        Int
+  timestamp                       BigInt
+  txHash                          String
+  contractAddress                 String
+
+  tokenAddress                    String
+  recipients                      String
+  amounts                         String
+  token_owner                     String?
+  token_name                      String
+  token_symbol                    String
+  token_totalSupply               String
+  token_decimals                  Int
+  token_ipfs                      String?
+  from                            String
+}

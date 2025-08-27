@@ -207,3 +207,52 @@ export async function handleStakingPoolCreatedEvent(ev: DecodedEvent) {
     console.error('[StakingPoolCreated] Error handling staking pool created event:', error);
   }
 }
+
+export async function handleMultisendTokenEvent(ev: DecodedEvent) {
+  console.log('[MultisendToken]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
+  try {
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    // console.log('[MultisendToken] decoded envelope XDR:', envelopeXdr);
+    const args =
+    data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
+    // console.log('[MultisendToken] args:', args[2], args[3]);
+    const tokenAddress = ev.data;
+    // const totalAmount = BigInt(args?.[2]?.i128 || 0);
+    const recipientsRaw = args?.[2]?.vec?.map((r: any) => r.address) || [];
+    const amountsRaw = args?.[3]?.vec?.map((a: any) => a.i128 ?? "") || [];
+    const recipients = recipientsRaw.toString()
+    const amounts = amountsRaw.toString()
+    // console.log('[MultisendToken] recipients:', recipients);
+    // console.log('[MultisendToken] amounts:', amounts);
+    const tokenMetadata = await getMetadata(
+      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
+      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      tokenAddress,
+      PUBLIC_KEY
+    );
+    await prisma.multisendTokens.create({
+      data: {
+        id: `${ev.txHash}-stellar-testnet`,
+        blockHeight: ev.ledger,
+        sequence: ev.ledger,
+        contractAddress: ev.contractId,
+        from: args?.[0]?.address || '',
+        tokenAddress,
+        recipients,
+        amounts,
+        txHash: ev.txHash,
+        timestamp: BigInt(timestamp), // Convert to BigInt if needed
+        token_name: tokenMetadata.name,
+        token_symbol: tokenMetadata.symbol,
+        token_totalSupply: tokenMetadata.totalSupply,
+        token_decimals: tokenMetadata.decimals,
+        token_ipfs: tokenMetadata.metadata,
+        token_owner: tokenMetadata.owner,
+        network: 'stellar-testnet', // Adjust as needed
+      }
+    });
+
+  } catch (error) {
+    console.error('[MultisendToken] Error handling multisend token event:', error);
+  }
+}
