@@ -124,8 +124,8 @@ model stakingPools {
   rewardToken                     String
   startTime                       BigInt
   endTime                         BigInt
-  precision                       BigInt
-  totalReward                     BigInt
+  precision                       String
+  totalReward                     String
   owner                           String
 
   stakingToken_owner              String?

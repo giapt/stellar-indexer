@@ -12,8 +12,8 @@ CREATE TABLE "stakingPools" (
     "rewardToken" TEXT NOT NULL,
     "startTime" BIGINT NOT NULL,
     "endTime" BIGINT NOT NULL,
-    "precision" BIGINT NOT NULL,
-    "totalReward" BIGINT NOT NULL,
+    "precision" TEXT NOT NULL,
+    "totalReward" TEXT NOT NULL,
     "owner" TEXT NOT NULL,
     "stakingToken_owner" TEXT,
     "stakingToken_name" TEXT NOT NULL,
@@ -30,4 +30,27 @@ CREATE TABLE "stakingPools" (
     "poolIndex" BIGINT NOT NULL,
 
     CONSTRAINT "stakingPools_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "multisendTokens" (
+    "id" TEXT NOT NULL,
+    "network" TEXT NOT NULL,
+    "blockHeight" INTEGER NOT NULL,
+    "sequence" INTEGER NOT NULL,
+    "timestamp" BIGINT NOT NULL,
+    "txHash" TEXT NOT NULL,
+    "contractAddress" TEXT NOT NULL,
+    "tokenAddress" TEXT NOT NULL,
+    "recipients" TEXT NOT NULL,
+    "amounts" TEXT NOT NULL,
+    "token_owner" TEXT,
+    "token_name" TEXT NOT NULL,
+    "token_symbol" TEXT NOT NULL,
+    "token_totalSupply" TEXT NOT NULL,
+    "token_decimals" INTEGER NOT NULL,
+    "token_ipfs" TEXT,
+    "from" TEXT NOT NULL,
+
+    CONSTRAINT "multisendTokens_pkey" PRIMARY KEY ("id")
 );

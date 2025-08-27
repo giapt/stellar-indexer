@@ -156,8 +156,8 @@ export async function handleStakingPoolCreatedEvent(ev: DecodedEvent) {
     const rewardTokenAddress = ev.data[1];
     const startTime = BigInt(ev.data[2] || 0);
     const endTime = BigInt(ev.data[3] || 0);
-    const precision = BigInt(ev.data[4] || 0);
-    const totalReward = BigInt(ev.data[5] || 0);
+    const precision = ev.data[4] || "0";
+    const totalReward = ev.data[5] || "0";
     const statkingTokenMetadata = await getMetadata(
       process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
       process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
