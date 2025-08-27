@@ -109,3 +109,37 @@ model token {
   ipfs          String
   createdAt     DateTime @default(now())
 }
+
+model stakingPools {
+  id                              String  @id
+  network                         String
+  blockHeight                     Int
+  sequence                        Int
+  stakingContract                 String
+  timestamp                       BigInt
+  txHash                          String
+  contractId                      String
+
+  stakingToken                    String
+  rewardToken                     String
+  startTime                       BigInt
+  endTime                         BigInt
+  precision                       BigInt
+  totalReward                     BigInt
+  owner                           String
+
+  stakingToken_owner              String?
+  stakingToken_name               String
+  stakingToken_symbol             String
+  stakingToken_totalSupply        String
+  stakingToken_decimals           Int
+  stakingToken_ipfs               String?
+  
+  rewardToken_owner               String?
+  rewardToken_name                String
+  rewardToken_symbol              String
+  rewardToken_totalSupply         String
+  rewardToken_decimals            Int
+  rewardToken_ipfs                String?
+  poolIndex                       BigInt
+}

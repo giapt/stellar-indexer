@@ -4,11 +4,14 @@ import {
 } from '../handlers';
 import { decodeEnvelopeForTx } from '../utils/tx-utils';
 import { prisma } from '../prismaConfig'; // Ensure you have a Prisma client instance
-import { fetchTokenMetadata } from '../utils/metadata';
+import { getMetadata } from '../utils/metadata';
 import {
   Networks,
 } from "@stellar/stellar-sdk";
+import { getDepositDetails } from '../utils/contract';
+
 const DEBUG = process.env.DEBUG === 'true';
+const PUBLIC_KEY = process.env.PUBLIC_KEY || "GBXY232X43NSRHK35R4IGV5CTG3EGI6YWZ2GUA3WGPVYN6TWTW5P55VG";
 
 
 // ==== Your handlers ====
@@ -84,70 +87,21 @@ export async function handleDepositEvent(ev: DecodedEvent) {
     const depositId = contractData?.[1]?.u32 || 0;
     console.log('[Deposit] depositId:', depositId);
 
-    let name = 'Unknown';
-    let symbol = 'Unknown';
-    let decimals = 0;
-    let totalSupply = "0";
-    let ipfs = '';
-    let owner = '';
+    const tokenMetadata = await getMetadata(
+      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
+      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      args?.[1]?.address,
+      PUBLIC_KEY
+    );
 
-    const tokenAddress = args?.[1]?.address || '';
-
-    const teamFinanceToken = await prisma.teamFinanceTokens.findUnique({
-      where: { id: `${tokenAddress}-stellar-testnet` },
+    const depositDetail = await getDepositDetails({
+      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      contractId: ev.contractId,
+      sourcePublicKey: PUBLIC_KEY,
+      depositId: depositId,
     });
-    const tokenDb = await prisma.token.findUnique({
-      where: { id: `${tokenAddress}-stellar-testnet` },
-    });
-    if (!teamFinanceToken && !tokenDb) {
-      console.log('[Deposit] No team finance token found for contract:', tokenAddress);
-      const publicKey = "GBXY232X43NSRHK35R4IGV5CTG3EGI6YWZ2GUA3WGPVYN6TWTW5P55VG";
-      const tokenMetadata = await fetchTokenMetadata(
-        process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
-        process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
-        args?.[1]?.address,
-        publicKey
-      );
-      name = tokenMetadata.name;
-      symbol = tokenMetadata.symbol;
-      decimals = tokenMetadata.decimals;
-      totalSupply = tokenMetadata.totalSupply;
-      ipfs = tokenMetadata.metadata || '';
-      owner = tokenMetadata.owner || '';
-      console.log('[Deposit] Fetched metadata:', {
-        name, symbol, decimals, totalSupply, ipfs, owner
-      });
-      await prisma.token.create({
-        data: {
-          id: `${tokenAddress}-stellar-testnet`,
-          address: tokenAddress,
-          name,
-          symbol,
-          decimals,
-          totalSupply,
-          ipfs,
-          owner,
-          network: 'stellar-testnet', // Adjust as needed
-        }
-      });
-    } else {
-      if (teamFinanceToken) {
-        name = teamFinanceToken.name;
-        symbol = teamFinanceToken.symbol;
-        decimals = teamFinanceToken.decimals;
-        totalSupply = teamFinanceToken.totalSupply;
-        ipfs = teamFinanceToken.ipfs || '';
-        owner = teamFinanceToken.owner || '';
-      }
-      if (tokenDb) {
-        name = tokenDb.name;
-        symbol = tokenDb.symbol;
-        decimals = tokenDb.decimals;
-        totalSupply = tokenDb.totalSupply;
-        ipfs = tokenDb.ipfs || '';
-        owner = tokenDb.owner || '';
-      }
-    }
+    console.log('[Deposit] depositDetail:', depositDetail);
 
     await prisma.deposits.create({
       data: {
@@ -163,12 +117,12 @@ export async function handleDepositEvent(ev: DecodedEvent) {
         unlockTime: BigInt(args?.[4]?.u64) || BigInt(0),
         txHash: ev.txHash,
         timestamp: BigInt(timestamp), // Convert to BigInt if needed
-        token_name: name,
-        token_symbol: symbol,
-        token_totalSupply: totalSupply,
-        token_decimals: decimals,
-        token_ipfs: ipfs,
-        token_owner: owner,
+        token_name: tokenMetadata.name,
+        token_symbol: tokenMetadata.symbol,
+        token_totalSupply: tokenMetadata.totalSupply,
+        token_decimals: tokenMetadata.decimals,
+        token_ipfs: tokenMetadata.metadata,
+        token_owner: tokenMetadata.owner,
         network: 'stellar-testnet', // Adjust as needed
         // update todo: call contract to getDepositDetails
         deposit_withdrawn: false,
@@ -183,4 +137,73 @@ export async function handleDepositEvent(ev: DecodedEvent) {
     console.error('[Deposit] Error handling deposit event:', error);
   }
 
+}
+
+export async function handleStakingPoolCreatedEvent(ev: DecodedEvent) {
+  console.log('[StakingPoolCreated]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
+  try {
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    // console.log('[StakingPoolCreated] decoded envelope XDR:', envelopeXdr);
+    const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[0]?.contract_data?.key?.vec;
+    // console.log('[StakingPoolCreated] contractData:', contractData);
+    const poolId = contractData?.[1]?.u32 || 0;
+    // console.log('[StakingPoolCreated] poolId:', poolId);
+
+    const args =
+    data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
+    // console.log('[StakingPoolCreated] args:', args);
+    const stakingTokenAddress = ev.data[0];
+    const rewardTokenAddress = ev.data[1];
+    const startTime = BigInt(ev.data[2] || 0);
+    const endTime = BigInt(ev.data[3] || 0);
+    const precision = BigInt(ev.data[4] || 0);
+    const totalReward = BigInt(ev.data[5] || 0);
+    const statkingTokenMetadata = await getMetadata(
+      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
+      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      stakingTokenAddress,
+      PUBLIC_KEY
+    );
+    const rewardTokenMetadata = await getMetadata(
+      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
+      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      rewardTokenAddress,
+      PUBLIC_KEY
+    );
+    await prisma.stakingPools.create({
+      data: {
+        id: `${poolId.toString()}-stellar-testnet`,
+        blockHeight: ev.ledger,
+        sequence: ev.ledger,
+        stakingContract: ev.contractId,
+        contractId: ev.contractId,
+        poolIndex: poolId.toString(),
+        stakingToken: stakingTokenAddress,
+        rewardToken: rewardTokenAddress,
+        startTime,
+        endTime,
+        precision,
+        totalReward,
+        txHash: ev.txHash,
+        timestamp: BigInt(timestamp), // Convert to BigInt if needed
+        owner: args?.[0]?.address || '',
+        stakingToken_name: statkingTokenMetadata.name,
+        stakingToken_symbol: statkingTokenMetadata.symbol,
+        stakingToken_totalSupply: statkingTokenMetadata.totalSupply,
+        stakingToken_decimals: statkingTokenMetadata.decimals,
+        stakingToken_ipfs: statkingTokenMetadata.metadata,
+        stakingToken_owner: statkingTokenMetadata.owner,
+        rewardToken_name: rewardTokenMetadata.name,
+        rewardToken_symbol: rewardTokenMetadata.symbol,
+        rewardToken_totalSupply: rewardTokenMetadata.totalSupply,
+        rewardToken_decimals: rewardTokenMetadata.decimals,
+        rewardToken_ipfs: rewardTokenMetadata.metadata,
+        rewardToken_owner: rewardTokenMetadata.owner,
+        network: 'stellar-testnet', // Adjust as needed
+      }
+    });
+
+  } catch (error) {
+    console.error('[StakingPoolCreated] Error handling staking pool created event:', error);
+  }
 }

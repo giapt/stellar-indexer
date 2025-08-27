@@ -5,6 +5,7 @@ import {
   Networks,
   scValToNative,
 } from "@stellar/stellar-sdk";
+import { prisma } from '../prismaConfig'; // Ensure you have a Prisma client instance
 
 type ViewResult = {
   symbol: string;
@@ -14,6 +15,62 @@ type ViewResult = {
   owner: string;
   metadata: string; // metadata may be null if not set
 };
+
+export async function getMetadata(
+  rpcUrl: string,
+  networkPassphrase: string,
+  contractId: string,
+  sourcePublicKey: string
+): Promise<ViewResult> {
+  const teamFinanceToken = await prisma.teamFinanceTokens.findUnique({
+    where: { id: `${contractId}-stellar-testnet` },
+    // todo update when network changes
+  });
+  if (teamFinanceToken) {
+    return {
+      symbol: teamFinanceToken.symbol,
+      name: teamFinanceToken.name,
+      totalSupply: teamFinanceToken.totalSupply,
+      decimals: teamFinanceToken.decimals,
+      owner: teamFinanceToken.owner,
+      metadata: teamFinanceToken.ipfs || '',
+    };
+  }
+  const tokenDb = await prisma.token.findUnique({
+    where: { id: `${contractId}-stellar-testnet` },
+    // todo update when network changes
+  });
+  if (tokenDb) {
+    return {
+      symbol: tokenDb.symbol,
+      name: tokenDb.name,
+      totalSupply: tokenDb.totalSupply,
+      decimals: tokenDb.decimals,
+      owner: tokenDb.owner,
+      metadata: tokenDb.ipfs || '',
+    };
+  }
+  const data = await fetchTokenMetadata(
+    rpcUrl,
+    networkPassphrase,
+    contractId,
+    sourcePublicKey
+  );
+  await prisma.token.create({
+    data: {
+      id: `${contractId}-stellar-testnet`,
+      address: contractId,
+      name: data.name,
+      symbol: data.symbol,
+      decimals: data.decimals,
+      totalSupply: data.totalSupply,
+      ipfs: data.metadata,
+      owner: data.owner,
+      network: 'stellar-testnet', // Adjust as needed
+    }
+  });
+  return data;
+}
 
 export async function fetchTokenMetadata(
   rpcUrl: string,
