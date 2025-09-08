@@ -8,7 +8,8 @@ import {
 } from './handlers';
 // import { jsonPrismaSafe, toDbBigInt } from './utils/json-safe';
 import { handleDepositEvent, handleUpdateMetadataEvent, 
-  handleMintEvent, handleStakingPoolCreatedEvent, handleMultisendTokenEvent
+  handleMintEvent, handleStakingPoolCreatedEvent, 
+  handleMultisendTokenEvent, handleVestingCreatedEvent
 } from './mappings/mappingHandlers';
 import { prisma } from './prismaConfig'; // Ensure you have a Prisma client instance
 
@@ -40,7 +41,12 @@ const HANDLERS: EventHandlerDef[] = [
     handler: handleMultisendTokenEvent,
     kind: StellarHandlerKind.Event,
     filter: { topics: ['TEAM_FINANCE_MULTISENDER', 'multi_send_token', '*', '*'] },
-  }
+  },
+  {
+    handler: handleVestingCreatedEvent,
+    kind: StellarHandlerKind.Event,
+    filter: { topics: ['TEAM_FINANCE_LOCKING', 'vesting_created', '*', '*'] },
+  },
 ];
 // ========================
 

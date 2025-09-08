@@ -115,10 +115,6 @@ type DecodedResp = {
 
 export async function decodeEnvelopeForTx(txHash: string): Promise<DecodedResp> {
   const { envelopeXDR, timestamp } = await getTransactionEnvelopeXDR(txHash);
-  const passphrase = inferPassphraseFromHorizon(CFG.horizon);
-  const txOrFeeBump = TransactionBuilder.fromXDR(envelopeXDR, passphrase);
-//   console.log('Decoded envelope XDR:', envelopeXDR);    
-//   console.log('decode ', txOrFeeBump);
   const keyFilePath = path.join(__dirname, "../../stellar_xdr_json_bg.wasm");
   const wasmBinary = await fs.readFile(keyFilePath);
 await initWasm(wasmBinary);

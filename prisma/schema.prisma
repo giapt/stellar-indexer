@@ -164,3 +164,29 @@ model multisendTokens {
   token_ipfs                      String?
   from                            String
 }
+
+model vestings {
+  id                              String  @id
+  network                         String
+  blockHeight                     Int
+  sequence                        Int
+  timestamp                       BigInt
+  txHash                          String
+  factoryContractAddress          String
+
+  creator                         String
+  vestingAddress                  String
+  tokenAddress                    String
+  merkleRoot                      String
+  tokenTotal                      String
+  fee                             String
+  claimed                         String
+  vesting_list_hash               String
+  
+  token_owner                     String?
+  token_name                      String
+  token_symbol                    String
+  token_totalSupply               String
+  token_decimals                  Int
+  token_ipfs                      String?
+}

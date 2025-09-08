@@ -1,6 +1,5 @@
 import {
-  StellarHandlerKind, EventHandlerDef,
-  eventMatchesHandler, DecodedEvent
+  DecodedEvent
 } from '../handlers';
 import { decodeEnvelopeForTx } from '../utils/tx-utils';
 import { prisma } from '../prismaConfig'; // Ensure you have a Prisma client instance
@@ -254,5 +253,55 @@ export async function handleMultisendTokenEvent(ev: DecodedEvent) {
 
   } catch (error) {
     console.error('[MultisendToken] Error handling multisend token event:', error);
+  }
+}
+
+export async function handleVestingCreatedEvent(ev: DecodedEvent) {
+  console.log('[VestingCreated]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
+  try {
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    // console.log('[VestingCreated] decoded envelope XDR:', envelopeXdr);
+    // const args =
+    // data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
+    // // console.log('[VestingCreated] args:', args);
+    // const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[0]?.contract_data?.key?.vec;
+    // const vestingId = contractData?.[1]?.u32 || 0;
+    // console.log('[VestingCreated] vestingId:', vestingId);
+
+    const tokenMetadata = await getMetadata(
+      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
+      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      ev.data[2],
+      PUBLIC_KEY
+    );
+
+    await prisma.vestings.create({
+      data: {
+        id: `${ev.data[1].toString()}-stellar-testnet`,
+        blockHeight: ev.ledger,
+        sequence: ev.ledger,
+        factoryContractAddress: ev.contractId,
+        creator: ev.data[0] || '',
+        tokenAddress: ev.data[2] || '',
+        vestingAddress: ev.data[1] || '',
+        merkleRoot: ev.data[3],
+        tokenTotal: ev.data[4],
+        fee: ev.data[5],
+        claimed: "0",
+        vesting_list_hash: ev.data[6] || '',
+        txHash: ev.txHash,
+        timestamp: BigInt(timestamp), // Convert to BigInt if needed
+        token_name: tokenMetadata.name,
+        token_symbol: tokenMetadata.symbol,
+        token_totalSupply: tokenMetadata.totalSupply,
+        token_decimals: tokenMetadata.decimals,
+        token_ipfs: tokenMetadata.metadata,
+        token_owner: tokenMetadata.owner,
+        network: 'stellar-testnet', // Adjust as needed
+      }
+    });
+
+  } catch (error) {
+    console.error('[VestingCreated] Error handling vesting created event:', error);
   }
 }
