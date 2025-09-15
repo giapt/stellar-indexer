@@ -3,7 +3,7 @@ import {
 } from '../handlers';
 import { decodeEnvelopeForTx } from '../utils/tx-utils';
 import { prisma } from '../prismaConfig'; // Ensure you have a Prisma client instance
-import { getMetadata } from '../utils/metadata';
+import { getMetadata, getMetadataLpToken, getMetadataNft } from '../utils/metadata';
 import {
   Networks,
 } from "@stellar/stellar-sdk";
@@ -73,6 +73,131 @@ export async function handleUpdateMetadataEvent(ev: DecodedEvent) {
   console.log('[UpdateMetadata]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
 }
 
+export async function handleLpDepositEvent(ev: DecodedEvent) {
+  console.log('[LPDeposit]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+  try {
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    // console.log('[LPDeposit] decoded envelope XDR:', envelopeXdr);
+    const args =
+    data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
+    console.log('[LPDeposit] args:', args);
+    const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[1]?.contract_data?.key?.vec;
+    const depositId = contractData?.[1]?.u32 || 0;
+    console.log('[LPDeposit] depositId:', depositId);
+
+    const tokenMetadata = await getMetadataLpToken(
+      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
+      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      args?.[1]?.address,
+      PUBLIC_KEY
+    );
+
+    const depositDetail = await getDepositDetails({
+      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      contractId: ev.contractId,
+      sourcePublicKey: PUBLIC_KEY,
+      depositId: depositId,
+    });
+    console.log('[LPDeposit] depositDetail:', depositDetail);
+
+    await prisma.lpDeposits.create({
+      data: {
+        id: `${depositId.toString()}-lp-deposit-stellar-testnet`,
+        blockHeight: ev.ledger,
+        sequence: ev.ledger,
+        senderAddress: args?.[1]?.address || '',
+        lockContractAddress: ev.contractId,
+        depositId: depositId.toString(),
+        tokenAddress: args?.[1]?.address || '',
+        withdrawalAddress: args?.[2]?.address || '',
+        amount: args?.[3]?.i128 || "0",
+        unlockTime: BigInt(args?.[4]?.u64) || BigInt(0),
+        txHash: ev.txHash,
+        timestamp: BigInt(timestamp), // Convert to BigInt if needed
+        token_name: tokenMetadata.name,
+        token_symbol: tokenMetadata.symbol,
+        token_totalSupply: "0",
+        token_decimals: tokenMetadata.decimals,
+        token_ipfs: "",
+        token_owner: "",
+        network: 'stellar-testnet', // Adjust as needed
+        // update todo: call contract to getDepositDetails
+        deposit_withdrawn: depositDetail[4],
+        deposit_tokenId: depositDetail[5] || BigInt(0),
+        deposit_isNFT: depositDetail[6],
+        deposit_migratedLockDepositId: BigInt(0),
+        deposit_isNFTMinted: false,
+      }
+    });
+  }
+  catch (error) {
+    console.error('[LPDeposit] Error handling lp deposit event:', error);
+  }
+}
+
+export async function handleNftDepositEvent(ev: DecodedEvent) {
+  console.log('[NFTDeposit]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+  try {
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    // console.log('[Deposit] decoded envelope XDR:', envelopeXdr);
+    // console.log('[Deposit] decoded envelope', ev.contractId, data);
+    const args =
+    data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
+    console.log('[Deposit] args:', args);
+    const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[1]?.contract_data?.key?.vec;
+    const depositId = contractData?.[1]?.u32 || 0;
+    console.log('[Deposit] depositId:', depositId);
+
+    const nftMetadata = await getMetadataNft(
+      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
+      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      args?.[1]?.address,
+      PUBLIC_KEY
+    );
+
+    const depositDetail = await getDepositDetails({
+      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      contractId: ev.contractId,
+      sourcePublicKey: PUBLIC_KEY,
+      depositId: depositId,
+    });
+    console.log('[NFTDeposit] depositDetail:', depositDetail);
+    await prisma.nftDeposits.create({
+      data: {
+        id: `${depositId.toString()}-nft-deposit-stellar-testnet`,
+        blockHeight: ev.ledger,
+        sequence: ev.ledger,
+        senderAddress: args?.[1]?.address || '',
+        lockContractAddress: ev.contractId,
+        depositId: depositId.toString(),
+        tokenAddress: args?.[1]?.address || '',
+        withdrawalAddress: args?.[2]?.address || '',
+        amount: args?.[3]?.i128 || "0",
+        unlockTime: BigInt(args?.[4]?.u64) || BigInt(0),
+        txHash: ev.txHash,
+        timestamp: BigInt(timestamp), // Convert to BigInt if needed
+        tokenId: BigInt(ev.data[1]),
+        nft_name: nftMetadata.name,
+        nft_symbol: nftMetadata.symbol,
+        nft_ipfs: "",
+        nft_owner: ev.data[2],
+        network: 'stellar-testnet', // Adjust as needed
+        // update todo: call contract to getDepositDetails
+        deposit_withdrawn: depositDetail[4],
+        deposit_tokenId: depositDetail[5] || BigInt(0),
+        deposit_isNFT: depositDetail[6],
+        deposit_migratedLockDepositId: BigInt(0),
+        deposit_isNFTMinted: false,
+      }
+    });
+  }
+  catch (error) {
+    console.error('[NFTDeposit] Error handling lp deposit event:', error);
+  }
+}
+
 export async function handleDepositEvent(ev: DecodedEvent) {
   console.log('[Deposit]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
@@ -124,9 +249,9 @@ export async function handleDepositEvent(ev: DecodedEvent) {
         token_owner: tokenMetadata.owner,
         network: 'stellar-testnet', // Adjust as needed
         // update todo: call contract to getDepositDetails
-        deposit_withdrawn: false,
-        deposit_tokenId: BigInt(0),
-        deposit_isNFT: false,
+        deposit_withdrawn: depositDetail[4],
+        deposit_tokenId: depositDetail[5] || BigInt(0),
+        deposit_isNFT: depositDetail[6],
         deposit_migratedLockDepositId: BigInt(0),
         deposit_isNFTMinted: false,
       }

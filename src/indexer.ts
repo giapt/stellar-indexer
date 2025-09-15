@@ -9,7 +9,8 @@ import {
 // import { jsonPrismaSafe, toDbBigInt } from './utils/json-safe';
 import { handleDepositEvent, handleUpdateMetadataEvent, 
   handleMintEvent, handleStakingPoolCreatedEvent, 
-  handleMultisendTokenEvent, handleVestingCreatedEvent
+  handleMultisendTokenEvent, handleVestingCreatedEvent,
+  handleLpDepositEvent, handleNftDepositEvent
 } from './mappings/mappingHandlers';
 import { prisma } from './prismaConfig'; // Ensure you have a Prisma client instance
 
@@ -31,6 +32,16 @@ const HANDLERS: EventHandlerDef[] = [
     handler: handleDepositEvent,
     kind: StellarHandlerKind.Event,
     filter: { topics: ['TEAM_FINANCE_LOCKING', 'deposit', '*', '*'] },
+  },
+  {
+    handler: handleLpDepositEvent,
+    kind: StellarHandlerKind.Event,
+    filter: { topics: ['TEAM_FINANCE_LOCKING', 'lp_deposit', '*', '*'] },
+  },
+  {
+    handler: handleNftDepositEvent,
+    kind: StellarHandlerKind.Event,
+    filter: { topics: ['TEAM_FINANCE_LOCKING', 'deposit_nft', '*', '*'] },
   },
   {
     handler: handleStakingPoolCreatedEvent,

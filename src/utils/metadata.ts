@@ -16,6 +16,102 @@ type ViewResult = {
   metadata: string; // metadata may be null if not set
 };
 
+type LPTokenViewResult = {
+  symbol: string;
+  name: string;
+  decimals: number;
+};
+
+type NftViewResult = {
+  symbol: string;
+  name: string;
+};
+
+export async function getMetadataNft(
+  rpcUrl: string,
+  networkPassphrase: string,
+  contractId: string,
+  sourcePublicKey: string
+): Promise<NftViewResult> {
+  const server = new rpc.Server(rpcUrl);
+  const contract = new Contract(contractId);
+
+  // helper to build & simulate a single-op view call
+  const simulateView = async (fn: string, ...args: any[]) => {
+    // for simulation you still need any valid account as source
+    const account = await server.getAccount(sourcePublicKey);
+
+    const tx = new TransactionBuilder(account, {
+      fee: "100",
+      networkPassphrase,
+    })
+      .addOperation(contract.call(fn, ...args))
+      .setTimeout(30)
+      .build();
+
+    const sim = await server.simulateTransaction(tx);
+    if ("error" in sim) {
+      throw new Error(
+        `Simulation error in ${fn}: ${JSON.stringify(sim.error)}`
+      );
+    }
+    const retval = sim.result?.retval;
+    if (!retval) throw new Error(`No retval from ${fn}`);
+    return scValToNative(retval);
+  };
+
+  // run the four view calls in parallel (each is a single-op tx)
+  const [symbol, name] = await Promise.all([
+    simulateView("symbol"),
+    simulateView("name"),
+  ]);
+
+  return { symbol, name };
+}
+
+export async function getMetadataLpToken(
+  rpcUrl: string,
+  networkPassphrase: string,
+  contractId: string,
+  sourcePublicKey: string
+): Promise<LPTokenViewResult> {
+  const server = new rpc.Server(rpcUrl);
+  const contract = new Contract(contractId);
+
+  // helper to build & simulate a single-op view call
+  const simulateView = async (fn: string, ...args: any[]) => {
+    // for simulation you still need any valid account as source
+    const account = await server.getAccount(sourcePublicKey);
+
+    const tx = new TransactionBuilder(account, {
+      fee: "100",
+      networkPassphrase,
+    })
+      .addOperation(contract.call(fn, ...args))
+      .setTimeout(30)
+      .build();
+
+    const sim = await server.simulateTransaction(tx);
+    if ("error" in sim) {
+      throw new Error(
+        `Simulation error in ${fn}: ${JSON.stringify(sim.error)}`
+      );
+    }
+    const retval = sim.result?.retval;
+    if (!retval) throw new Error(`No retval from ${fn}`);
+    return scValToNative(retval);
+  };
+
+  // run the four view calls in parallel (each is a single-op tx)
+  const [symbol, name, decimals] = await Promise.all([
+    simulateView("symbol"),
+    simulateView("name"),
+    simulateView("decimals")
+  ]);
+
+  return { symbol, name, decimals };
+}
+
 export async function getMetadata(
   rpcUrl: string,
   networkPassphrase: string,

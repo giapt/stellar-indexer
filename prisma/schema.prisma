@@ -97,6 +97,71 @@ model deposits {
   @@index([depositId], map: "deposit_idx_lock_contract")
 }
 
+model lpDeposits {
+  id                        String  @id
+  network                   String
+  blockHeight               Int
+  sequence                  Int
+  lockContractAddress       String
+  depositId                 String
+  tokenAddress              String
+  withdrawalAddress         String
+  amount                    String
+  unlockTime                BigInt
+  txHash                    String
+  timestamp                 BigInt
+  senderAddress             String
+
+  token_owner               String?
+  token_name                String
+  token_symbol              String
+  token_totalSupply         String
+  token_decimals            Int
+  token_ipfs                String?
+
+  deposit_withdrawn         Boolean
+  deposit_tokenId           BigInt
+  deposit_isNFT             Boolean
+  deposit_migratedLockDepositId     BigInt
+  deposit_isNFTMinted               Boolean
+
+  createdAt                 DateTime @default(now())
+
+  @@index([depositId], map: "lp_deposit_idx_lock_contract")
+}
+
+model nftDeposits {
+  id                        String  @id
+  network                   String
+  blockHeight               Int
+  sequence                  Int
+  lockContractAddress       String
+  depositId                 String
+  tokenAddress              String
+  withdrawalAddress         String
+  amount                    String
+  unlockTime                BigInt
+  txHash                    String
+  timestamp                 BigInt
+  senderAddress             String
+
+  tokenId                   BigInt
+  nft_owner                 String?
+  nft_name                  String
+  nft_symbol                String
+  nft_ipfs                  String?
+
+  deposit_withdrawn         Boolean
+  deposit_tokenId           BigInt
+  deposit_isNFT             Boolean
+  deposit_migratedLockDepositId     BigInt
+  deposit_isNFTMinted               Boolean
+
+  createdAt                 DateTime @default(now())
+
+  @@index([depositId], map: "nft_deposit_idx_lock_contract")
+}
+
 model token {
   id            String  @id
   network       String
