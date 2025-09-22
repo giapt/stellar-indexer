@@ -80,7 +80,9 @@ function toSigPiece(v: any): string {
   if (typeof v === 'bigint') return v.toString();
   if (v instanceof Uint8Array) return '0x' + Buffer.from(v).toString('hex');
   if (typeof v === 'object' && 'address' in v && typeof (v as any).address === 'string') return (v as any).address;
-  return JSON.stringify(v);
+  return JSON.stringify(v, (_, value) =>
+    typeof value === "bigint" ? value.toString() : value
+  );
 }
 
 /**
