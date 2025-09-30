@@ -24,7 +24,7 @@ services:
     environment:
       HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/stellar_indexer
       HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
-      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: public
+      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: anonymous
     depends_on:
       - db
 

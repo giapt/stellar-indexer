@@ -56,7 +56,7 @@ const HANDLERS: EventHandlerDef[] = [
   {
     handler: handleVestingCreatedEvent,
     kind: StellarHandlerKind.Event,
-    filter: { topics: ['TEAM_FINANCE_LOCKING', 'vesting_created', '*', '*'] },
+    filter: { topics: ['TEAM_FINANCE_VESTING_FACTORY', 'vesting_created', '*', '*'] },
   },
 ];
 // ========================
