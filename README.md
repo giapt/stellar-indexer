@@ -80,6 +80,10 @@ npm run dev
 docker build -t stellar-indexer .
 docker run --env-file .env -p 8080:8080 stellar-indexer
 ```
+or
+```bash
+docker compose up --build -d
+```
 
 ## GraphQL
 Once running, the GraphQL API is available at:

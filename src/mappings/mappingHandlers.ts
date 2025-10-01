@@ -202,12 +202,12 @@ export async function handleDepositEvent(ev: DecodedEvent) {
   console.log('[Deposit]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
     const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
-    // console.log('[Deposit] decoded envelope XDR:', envelopeXdr);
+    console.log('[Deposit] decoded envelope XDR:', envelopeXdr);
     // console.log('[Deposit] decoded envelope', ev.contractId, data);
     const args =
     data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
     console.log('[Deposit] args:', args);
-    const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[4]?.contract_data?.key?.vec;
+    const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[1]?.contract_data?.key?.vec;
     const depositId = contractData?.[1]?.u32 || 0;
     console.log('[Deposit] depositId:', depositId);
 
