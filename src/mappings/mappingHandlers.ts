@@ -106,7 +106,7 @@ export async function handleLpDepositEvent(ev: DecodedEvent) {
         id: `${depositId.toString()}-lp-deposit-stellar-testnet`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
-        senderAddress: args?.[1]?.address || '',
+        senderAddress: args?.[0]?.address || '',
         lockContractAddress: ev.contractId,
         depositId: depositId.toString(),
         tokenAddress: args?.[1]?.address || '',
@@ -169,7 +169,7 @@ export async function handleNftDepositEvent(ev: DecodedEvent) {
         id: `${depositId.toString()}-nft-deposit-stellar-testnet`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
-        senderAddress: args?.[1]?.address || '',
+        senderAddress: args?.[0]?.address || '',
         lockContractAddress: ev.contractId,
         depositId: depositId.toString(),
         tokenAddress: args?.[1]?.address || '',
@@ -202,7 +202,7 @@ export async function handleDepositEvent(ev: DecodedEvent) {
   console.log('[Deposit]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
     const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
-    console.log('[Deposit] decoded envelope XDR:', envelopeXdr);
+    // console.log('[Deposit] decoded envelope XDR:', envelopeXdr);
     // console.log('[Deposit] decoded envelope', ev.contractId, data);
     const args =
     data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
@@ -232,7 +232,7 @@ export async function handleDepositEvent(ev: DecodedEvent) {
         id: `${depositId.toString()}-stellar-testnet`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
-        senderAddress: args?.[1]?.address || '',
+        senderAddress: args?.[0]?.address || '',
         lockContractAddress: ev.contractId,
         depositId: depositId.toString(),
         tokenAddress: args?.[1]?.address || '',
