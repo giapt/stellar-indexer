@@ -315,6 +315,42 @@ export async function handleDepositEvent(ev: DecodedEvent) {
 
 export async function handleTransferLockEvent(ev: DecodedEvent) {
   console.log('[TransferLock]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+  try {
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    // console.log('[TransferLock] decoded envelope XDR:', envelopeXdr);
+    const newOwner = ev.data[2];
+    const depositId = ev.data[0];
+    const depositDetail = await getDepositDetails({
+      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      contractId: ev.contractId,
+      sourcePublicKey: PUBLIC_KEY,
+      depositId: depositId,
+    });
+    const deposit = await prisma.deposits.findUnique({
+      where: { id: `${depositId.toString()}-stellar-testnet` },
+      // todo update when network changes
+    });
+    if (!deposit) {
+      console.log(`[TransferLock] Deposit id ${depositId.toString()} not found, creating new record.`);
+      // If deposit not found, create it first
+    }
+    await prisma.deposits.update({
+      where: { id: `${depositId.toString()}-stellar-testnet` },
+      data: {
+        withdrawalAddress: newOwner,
+        deposit_withdrawn: depositDetail[4],
+        deposit_tokenId: depositDetail[5] || BigInt(0),
+        deposit_isNFT: depositDetail[6],
+        deposit_migratedLockDepositId: BigInt(0),
+        deposit_isNFTMinted: false,
+        amount: depositDetail[2].toString(),
+        unlockTime: BigInt(depositDetail[3] || 0),
+      }
+    });
+  } catch (error) {
+    console.error('[TransferLock] Error handling transfer lock event:', error);
+  }
 }
 
 export async function handleSplitLockEvent(ev: DecodedEvent) {
