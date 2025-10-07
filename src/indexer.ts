@@ -11,7 +11,8 @@ import { handleDepositEvent, handleUpdateMetadataEvent,
   handleMintEvent, handleStakingPoolCreatedEvent, 
   handleMultisendTokenEvent, handleVestingCreatedEvent,
   handleLpDepositEvent, handleNftDepositEvent,
-  handleTransferLockEvent, handleSplitLockEvent
+  handleTransferLockEvent, handleSplitLockEvent,
+  handleTokenWithdrawEvent
 } from './mappings/mappingHandlers';
 import { prisma } from './prismaConfig'; // Ensure you have a Prisma client instance
 
@@ -48,6 +49,11 @@ const HANDLERS: EventHandlerDef[] = [
     handler: handleSplitLockEvent,
     kind: StellarHandlerKind.Event,
     filter: { topics: ['TEAM_FINANCE_LOCKING', 'lock_split', '*', '*'] },
+  },
+  {
+    handler: handleTokenWithdrawEvent,
+    kind: StellarHandlerKind.Event,
+    filter: { topics: ['TEAM_FINANCE_LOCKING', 'log_token_withdrawal', '*', '*'] },
   },
   {
     handler: handleNftDepositEvent,

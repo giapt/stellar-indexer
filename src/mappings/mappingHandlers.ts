@@ -122,7 +122,6 @@ export async function handleLpDepositEvent(ev: DecodedEvent) {
         token_ipfs: "",
         token_owner: "",
         network: 'stellar-testnet', // Adjust as needed
-        // update todo: call contract to getDepositDetails
         deposit_withdrawn: depositDetail[4],
         deposit_tokenId: depositDetail[5] || BigInt(0),
         deposit_isNFT: depositDetail[6],
@@ -184,7 +183,6 @@ export async function handleNftDepositEvent(ev: DecodedEvent) {
         nft_ipfs: "",
         nft_owner: ev.data[2],
         network: 'stellar-testnet', // Adjust as needed
-        // update todo: call contract to getDepositDetails
         deposit_withdrawn: depositDetail[4],
         deposit_tokenId: depositDetail[5] || BigInt(0),
         deposit_isNFT: depositDetail[6],
@@ -266,7 +264,6 @@ export async function handleDepositEvent(ev: DecodedEvent) {
         token_ipfs: tokenMetadata.metadata,
         token_owner: tokenMetadata.owner,
         network: 'stellar-testnet', // Adjust as needed
-        // update todo: call contract to getDepositDetails
         deposit_withdrawn: depositDetail[4],
         deposit_tokenId: depositDetail[5] || BigInt(0),
         deposit_isNFT: depositDetail[6],
@@ -297,7 +294,6 @@ export async function handleDepositEvent(ev: DecodedEvent) {
         token_ipfs: tokenMetadata.metadata,
         token_owner: tokenMetadata.owner,
         network: 'stellar-testnet', // Adjust as needed
-        // update todo: call contract to getDepositDetails
         deposit_withdrawn: depositDetail[4],
         deposit_tokenId: depositDetail[5] || BigInt(0),
         deposit_isNFT: depositDetail[6],
@@ -334,6 +330,7 @@ export async function handleTransferLockEvent(ev: DecodedEvent) {
     if (!deposit) {
       console.log(`[TransferLock] Deposit id ${depositId.toString()} not found, creating new record.`);
       // If deposit not found, create it first
+      await createDeposit(depositId, ev.contractId);
     }
     await prisma.deposits.update({
       where: { id: `${depositId.toString()}-stellar-testnet` },
@@ -359,26 +356,76 @@ export async function handleSplitLockEvent(ev: DecodedEvent) {
     console.log('Update deposit id:', ev.data[0]);
     const depositId = ev.data[0];
     const depositDetail = await getDepositDetails({
-        rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
-        networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
-        contractId: ev.contractId,
-        sourcePublicKey: PUBLIC_KEY,
-        depositId: depositId,
-      });
-    await prisma.deposits.update({
-      where: { id: `${depositId.toString()}-stellar-testnet` },
-      data: {
-        deposit_withdrawn: depositDetail[4],
-        deposit_tokenId: depositDetail[5] || BigInt(0),
-        deposit_isNFT: depositDetail[6],
-        deposit_migratedLockDepositId: BigInt(0),
-        deposit_isNFTMinted: false,
-        amount: depositDetail[2].toString(),
-        unlockTime: BigInt(depositDetail[3] || 0),
-      }
+      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      contractId: ev.contractId,
+      sourcePublicKey: PUBLIC_KEY,
+      depositId: depositId,
     });
+    const deposit = await prisma.deposits.findUnique({
+      where: { id: `${depositId.toString()}-stellar-testnet` },
+      // todo update when network changes
+    });
+    if (!deposit) {
+      console.log(`[SplitLock] Deposit id ${depositId.toString()} not found, creating new record.`);
+      // If deposit not found, create it first
+      await createDeposit(depositId, ev.contractId);
+    } else {
+      await prisma.deposits.update({
+        where: { id: `${depositId.toString()}-stellar-testnet` },
+        data: {
+          deposit_withdrawn: depositDetail[4],
+          deposit_tokenId: depositDetail[5] || BigInt(0),
+          deposit_isNFT: depositDetail[6],
+          deposit_migratedLockDepositId: BigInt(0),
+          deposit_isNFTMinted: false,
+          amount: depositDetail[2].toString(),
+          unlockTime: BigInt(depositDetail[3] || 0),
+        }
+      });
+    }
   } catch (error) {
     console.error('[SplitLock] Error handling split lock event:', error);
+  }
+}
+
+export async function handleTokenWithdrawEvent(ev: DecodedEvent) {
+  console.log('[TokenWithdraw]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+  try {
+    const passphrase = process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET;
+    const networkTag = passphrase === Networks.PUBLIC ? 'stellar-mainnet' : 'stellar-testnet';
+    const depositId = ev.data[0];
+    
+    const depositDetail = await getDepositDetails({
+      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      contractId: ev.contractId,
+      sourcePublicKey: PUBLIC_KEY,
+      depositId: depositId,
+    });
+    const deposit = await prisma.deposits.findUnique({
+      where: { id: `${depositId.toString()}-${networkTag}` },
+    });
+    if (!deposit) {
+      console.log(`[TokenWithdraw] Deposit id ${depositId.toString()} not found, creating new record.`);
+      // If deposit not found, create it first
+      await createDeposit(depositId, ev.contractId);
+    } else {
+      await prisma.deposits.update({
+        where: { id: `${depositId.toString()}-${networkTag}` },
+        data: {
+          deposit_withdrawn: depositDetail[4],
+          deposit_tokenId: depositDetail[5] || BigInt(0),
+          deposit_isNFT: depositDetail[6],
+          deposit_migratedLockDepositId: BigInt(0),
+          deposit_isNFTMinted: false,
+          amount: depositDetail[2].toString(),
+          unlockTime: BigInt(depositDetail[3] || 0),
+        }
+      });
+    }
+  } catch (error) {
+    console.error('[TokenWithdraw] Error handling token withdraw event:', error);
   }
 }
 
@@ -548,4 +595,62 @@ export async function handleVestingCreatedEvent(ev: DecodedEvent) {
   } catch (error) {
     console.error('[VestingCreated] Error handling vesting created event:', error);
   }
+}
+
+async function createDeposit(depositId: number, contractId: string) {
+  // Check if deposit already exists
+  const existing = await prisma.deposits.findUnique({
+    where: { id: `${depositId.toString()}-stellar-testnet` },
+  });
+  if (existing) {
+    console.log(`Deposit with id ${depositId} already exists.`);
+    return;
+  }
+  const depositDetail = await getDepositDetails({
+    rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+    networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+    contractId: contractId,
+    sourcePublicKey: PUBLIC_KEY,
+    depositId: depositId,
+  });
+  if (!depositDetail) {
+    console.log(`Deposit details for id ${depositId} not found.`);
+    return;
+  }
+  const tokenAddress = depositDetail[0];
+  const tokenMetadata = await getMetadata(
+    process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
+    process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+    tokenAddress,
+    PUBLIC_KEY
+  );
+  // Create new deposit
+  await prisma.deposits.create({
+    data: {
+      id: `${depositId.toString()}-stellar-testnet`,
+      blockHeight: 0,
+      sequence: 0,
+      senderAddress: '',
+      lockContractAddress: contractId,
+      depositId: depositId.toString(),
+      tokenAddress: tokenAddress || '',
+      withdrawalAddress: depositDetail[1],
+      amount: depositDetail[2].toString(),
+      unlockTime: BigInt(depositDetail[3]),
+      txHash: '',
+      timestamp: BigInt(0),
+      token_name: tokenMetadata.name,
+      token_symbol: tokenMetadata.symbol,
+      token_totalSupply: tokenMetadata.totalSupply,
+      token_decimals: tokenMetadata.decimals,
+      token_ipfs: tokenMetadata.metadata,
+      token_owner: tokenMetadata.owner,
+      network: 'stellar-testnet',
+      deposit_withdrawn: depositDetail[4],
+      deposit_tokenId: depositDetail[5] || BigInt(0),
+      deposit_isNFT: depositDetail[6],
+      deposit_migratedLockDepositId: BigInt(0),
+      deposit_isNFTMinted: false,
+    }
+  });
 }
