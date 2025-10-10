@@ -129,6 +129,29 @@ export async function handleLpDepositEvent(ev: DecodedEvent) {
         deposit_isNFTMinted: false,
       }
     });
+    await prisma.depositDetail.create({
+      data: {
+        id: `${depositId.toString()}-stellar-testnet`,
+        lockContractAddress: ev.contractId,
+        depositId: depositId.toString(),
+        tokenAddress: args?.[1]?.address || '',
+        withdrawalAddress: depositDetail[1],
+        tokenAmount: depositDetail[2].toString(),
+        unlockTime: BigInt(depositDetail[3]),
+        token_name: tokenMetadata.name,
+        token_symbol: tokenMetadata.symbol,
+        token_totalSupply: "0",
+        token_decimals: tokenMetadata.decimals,
+        token_ipfs: "",
+        token_owner: "",
+        network: 'stellar-testnet',
+        withdrawn: depositDetail[4],
+        tokenId: depositDetail[5] || BigInt(0),
+        isNFT: depositDetail[6],
+        migratedLockDepositId: BigInt(0),
+        isNFTMinted: false,
+      }
+    });
   }
   catch (error) {
     console.error('[LPDeposit] Error handling lp deposit event:', error);
@@ -162,7 +185,7 @@ export async function handleNftDepositEvent(ev: DecodedEvent) {
       sourcePublicKey: PUBLIC_KEY,
       depositId: depositId,
     });
-    console.log('[NFTDeposit] depositDetail:', depositDetail);
+    // console.log('[NFTDeposit] depositDetail:', depositDetail);
     await prisma.nftDeposits.create({
       data: {
         id: `${depositId.toString()}-nft-deposit-stellar-testnet`,
@@ -190,9 +213,33 @@ export async function handleNftDepositEvent(ev: DecodedEvent) {
         deposit_isNFTMinted: false,
       }
     });
+    
+    await prisma.depositDetail.create({
+      data: {
+        id: `${depositId.toString()}-stellar-testnet`,
+        lockContractAddress: ev.contractId,
+        depositId: depositId.toString(),
+        tokenAddress: args?.[1]?.address || '',
+        withdrawalAddress: depositDetail[1],
+        tokenAmount: depositDetail[2].toString(),
+        unlockTime: BigInt(depositDetail[3]),
+        token_name: nftMetadata.name,
+        token_symbol: nftMetadata.symbol,
+        token_totalSupply: "0",
+        token_decimals: 0,
+        token_ipfs: "",
+        token_owner: "",
+        network: 'stellar-testnet',
+        withdrawn: depositDetail[4],
+        tokenId: depositDetail[5] || BigInt(0),
+        isNFT: depositDetail[6],
+        migratedLockDepositId: BigInt(0),
+        isNFTMinted: false,
+      }
+    });
   }
   catch (error) {
-    console.error('[NFTDeposit] Error handling lp deposit event:', error);
+    console.error('[NFTDeposit] Error handling nft deposit event:', error);
   }
 }
 
@@ -203,7 +250,7 @@ export async function handleDepositEvent(ev: DecodedEvent) {
     // console.log('[Deposit] decoded envelope XDR:', envelopeXdr);
     // console.log('[Deposit] decoded envelope', ev.contractId, data);
     const function_name = data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.function_name;
-    console.log('[Deposit] function_name:', function_name);
+    // console.log('[Deposit] function_name:', function_name);
     const args =
     data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
     //to do fix check args in split and create new
@@ -302,6 +349,29 @@ export async function handleDepositEvent(ev: DecodedEvent) {
       }
     });
   }
+    await prisma.depositDetail.create({
+      data: {
+        id: `${depositId.toString()}-stellar-testnet`,
+        lockContractAddress: ev.contractId,
+        depositId: depositId.toString(),
+        tokenAddress: args?.[1]?.address || '',
+        withdrawalAddress: depositDetail[1],
+        tokenAmount: depositDetail[2].toString(),
+        unlockTime: BigInt(depositDetail[3]),
+        token_name: tokenMetadata.name,
+        token_symbol: tokenMetadata.symbol,
+        token_totalSupply: "0",
+        token_decimals: tokenMetadata.decimals,
+        token_ipfs: "",
+        token_owner: "",
+        network: 'stellar-testnet',
+        withdrawn: depositDetail[4],
+        tokenId: depositDetail[5] || BigInt(0),
+        isNFT: depositDetail[6],
+        migratedLockDepositId: BigInt(0),
+        isNFTMinted: false,
+      }
+    });
   }
   catch (error) {
     console.error('[Deposit] Error handling deposit event:', error);
@@ -323,26 +393,33 @@ export async function handleTransferLockEvent(ev: DecodedEvent) {
       sourcePublicKey: PUBLIC_KEY,
       depositId: depositId,
     });
-    const deposit = await prisma.deposits.findUnique({
+    const deposit = await prisma.depositDetail.findUnique({
       where: { id: `${depositId.toString()}-stellar-testnet` },
       // todo update when network changes
     });
     if (!deposit) {
-      console.log(`[TransferLock] Deposit id ${depositId.toString()} not found, creating new record.`);
+      console.log(`[TransferLock] DepositDetail id ${depositId.toString()} not found, creating new record.`);
       // If deposit not found, create it first
-      await createDeposit(depositId, ev.contractId);
+      await createDepositDetail(depositId, ev.contractId);
+    } else {
+      await prisma.depositDetail.update({
+        where: { id: `${depositId.toString()}-stellar-testnet` },
+        data: {
+          withdrawalAddress: newOwner,
+        }
+      });
     }
-    await prisma.deposits.update({
-      where: { id: `${depositId.toString()}-stellar-testnet` },
+    await prisma.transferLocks.create({
       data: {
-        withdrawalAddress: newOwner,
-        deposit_withdrawn: depositDetail[4],
-        deposit_tokenId: depositDetail[5] || BigInt(0),
-        deposit_isNFT: depositDetail[6],
-        deposit_migratedLockDepositId: BigInt(0),
-        deposit_isNFTMinted: false,
-        amount: depositDetail[2].toString(),
-        unlockTime: BigInt(depositDetail[3] || 0),
+        id: `${ev.txHash}-stellar-testnet`,
+        blockHeight: ev.ledger,
+        sequence: ev.ledger,
+        lockContractAddress: ev.contractId,
+        depositId: depositId.toString(),
+        receiverAddress: newOwner,
+        txHash: ev.txHash,
+        timestamp: BigInt(timestamp), // Convert to BigInt if needed
+        network: 'stellar-testnet', // Adjust as needed
       }
     });
   } catch (error) {
@@ -352,6 +429,7 @@ export async function handleTransferLockEvent(ev: DecodedEvent) {
 
 export async function handleSplitLockEvent(ev: DecodedEvent) {
   console.log('[SplitLock]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+  const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
   try {
     console.log('Update deposit id:', ev.data[0]);
     const depositId = ev.data[0];
@@ -362,24 +440,42 @@ export async function handleSplitLockEvent(ev: DecodedEvent) {
       sourcePublicKey: PUBLIC_KEY,
       depositId: depositId,
     });
-    const deposit = await prisma.deposits.findUnique({
+    
+    await prisma.lockSplits.create({
+      data: {
+        id: `${ev.txHash}-stellar-testnet`,
+        blockHeight: ev.ledger,
+        sequence: ev.ledger,
+        lockContractAddress: ev.contractId,
+        depositId: depositId.toString(),
+        remainingAmount: ev.data[1] || "0",
+        splitLockId: BigInt(ev.data[2] || 0),
+        newSplitLockAmount: ev.data[3] || "0",
+        txHash: ev.txHash,
+        timestamp: BigInt(timestamp), // Convert to BigInt if needed
+        network: 'stellar-testnet', // Adjust as needed
+      }
+    });
+
+    const deposit = await prisma.depositDetail.findUnique({
       where: { id: `${depositId.toString()}-stellar-testnet` },
       // todo update when network changes
     });
+
     if (!deposit) {
       console.log(`[SplitLock] Deposit id ${depositId.toString()} not found, creating new record.`);
       // If deposit not found, create it first
-      await createDeposit(depositId, ev.contractId);
+      await createDepositDetail(depositId, ev.contractId);
     } else {
-      await prisma.deposits.update({
+      await prisma.depositDetail.update({
         where: { id: `${depositId.toString()}-stellar-testnet` },
         data: {
-          deposit_withdrawn: depositDetail[4],
-          deposit_tokenId: depositDetail[5] || BigInt(0),
-          deposit_isNFT: depositDetail[6],
-          deposit_migratedLockDepositId: BigInt(0),
-          deposit_isNFTMinted: false,
-          amount: depositDetail[2].toString(),
+          withdrawn: depositDetail[4],
+          tokenId: depositDetail[5] || BigInt(0),
+          isNFT: depositDetail[6],
+          migratedLockDepositId: BigInt(0),
+          isNFTMinted: false,
+          tokenAmount: depositDetail[2].toString(),
           unlockTime: BigInt(depositDetail[3] || 0),
         }
       });
@@ -389,13 +485,13 @@ export async function handleSplitLockEvent(ev: DecodedEvent) {
   }
 }
 
-export async function handleTokenWithdrawEvent(ev: DecodedEvent) {
-  console.log('[TokenWithdraw]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+export async function handleNftWithdrawEvent(ev: DecodedEvent) {
+  console.log('[NftWithdraw]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
     const passphrase = process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET;
     const networkTag = passphrase === Networks.PUBLIC ? 'stellar-mainnet' : 'stellar-testnet';
     const depositId = ev.data[0];
-    
     const depositDetail = await getDepositDetails({
       rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
       networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
@@ -403,29 +499,231 @@ export async function handleTokenWithdrawEvent(ev: DecodedEvent) {
       sourcePublicKey: PUBLIC_KEY,
       depositId: depositId,
     });
-    const deposit = await prisma.deposits.findUnique({
+    const tokenAddress= ev.data[1];
+    const tokenId = BigInt(ev.data[2] || 0);
+    const nftMetadata = await getMetadataNft(
+      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
+      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      tokenAddress,
+      PUBLIC_KEY
+    );
+    await prisma.logNftWithdrawals.create({
+      data: {
+        id: `${ev.txHash}-${networkTag}`,
+        blockHeight: ev.ledger,
+        sequence: ev.ledger,
+        lockContractAddress: ev.contractId,
+        depositId: depositId.toString(),
+        txHash: ev.txHash,
+        timestamp: BigInt(timestamp), // Convert to BigInt if needed
+        network: networkTag, // Adjust as needed
+        deposit_withdrawn: depositDetail[4],
+        deposit_tokenId: depositDetail[5] || BigInt(0),
+        deposit_isNFT: depositDetail[6],
+        deposit_migratedLockDepositId: BigInt(0),
+        deposit_isNFTMinted: false,
+        tokenAddress: depositDetail[0],
+        withdrawalAddress: depositDetail[1],
+        amount: depositDetail[2].toString(),
+        tokenId: tokenId,
+      }
+    });
+    const deposit = await prisma.depositDetail.findUnique({
+      where: { id: `${depositId.toString()}-${networkTag}` },
+    });
+    if (!deposit) {
+      console.log(`[NftWithdraw] Deposit id ${depositId.toString()} not found, creating new record.`);
+      // If deposit not found, create it first
+      await prisma.depositDetail.create({
+      data: {
+        id: `${depositId.toString()}-stellar-testnet`,
+        lockContractAddress: ev.contractId,
+        depositId: depositId.toString(),
+        tokenAddress,
+        withdrawalAddress: depositDetail[1],
+        tokenAmount: depositDetail[2].toString(),
+        unlockTime: BigInt(depositDetail[3]),
+        token_name: nftMetadata.name,
+        token_symbol: nftMetadata.symbol,
+        token_totalSupply: "0",
+        token_decimals: 0,
+        token_ipfs: "",
+        token_owner: "",
+        network: 'stellar-testnet',
+        withdrawn: depositDetail[4],
+        tokenId: tokenId,
+        isNFT: depositDetail[6],
+        migratedLockDepositId: BigInt(0),
+        isNFTMinted: false,
+      }
+    });
+    } else {
+
+      await prisma.depositDetail.update({
+        where: { id: `${depositId.toString()}-${networkTag}` },
+        data: {
+          withdrawn: depositDetail[4],
+          tokenId: tokenId,
+          isNFT: depositDetail[6],
+          migratedLockDepositId: BigInt(0),
+          isNFTMinted: false,
+          tokenAmount: depositDetail[2].toString(),
+          unlockTime: BigInt(depositDetail[3] || 0),
+        }
+      });
+    }
+  } catch (error) {
+    console.error('[NftWithdraw] Error handling nft withdraw event:', error);
+  }
+}
+
+export async function handleTokenWithdrawEvent(ev: DecodedEvent) {
+  console.log('[TokenWithdraw]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+  try {
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    const passphrase = process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET;
+    const networkTag = passphrase === Networks.PUBLIC ? 'stellar-mainnet' : 'stellar-testnet';
+    const depositId = ev.data[0];
+    const depositDetail = await getDepositDetails({
+      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      contractId: ev.contractId,
+      sourcePublicKey: PUBLIC_KEY,
+      depositId: depositId,
+    });
+    const tokenAddress= ev.data[1];
+    // const tokenMetadata = await getMetadataLpToken(
+    //   process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
+    //   process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+    //   tokenAddress,
+    //   PUBLIC_KEY
+    // );
+    // todo fix call token metadata here
+
+    await prisma.logTokenWithdrawals.create({
+      data: {
+        id: `${ev.txHash}-${networkTag}`,
+        blockHeight: ev.ledger,
+        sequence: ev.ledger,
+        lockContractAddress: ev.contractId,
+        depositId: depositId.toString(),
+        txHash: ev.txHash,
+        timestamp: BigInt(timestamp), // Convert to BigInt if needed
+        network: networkTag, // Adjust as needed
+        deposit_withdrawn: depositDetail[4],
+        deposit_tokenId: depositDetail[5] || BigInt(0),
+        deposit_isNFT: depositDetail[6],
+        deposit_migratedLockDepositId: BigInt(0),
+        deposit_isNFTMinted: false,
+        tokenAddress: depositDetail[0],
+        withdrawalAddress: depositDetail[1],
+        amount: depositDetail[2].toString(),
+      }
+    });
+    const deposit = await prisma.depositDetail.findUnique({
       where: { id: `${depositId.toString()}-${networkTag}` },
     });
     if (!deposit) {
       console.log(`[TokenWithdraw] Deposit id ${depositId.toString()} not found, creating new record.`);
       // If deposit not found, create it first
-      await createDeposit(depositId, ev.contractId);
+      await prisma.depositDetail.create({
+      data: {
+        id: `${depositId.toString()}-stellar-testnet`,
+        lockContractAddress: ev.contractId,
+        depositId: depositId.toString(),
+        tokenAddress,
+        withdrawalAddress: depositDetail[1],
+        tokenAmount: depositDetail[2].toString(),
+        unlockTime: BigInt(depositDetail[3]),
+        // token_name: tokenMetadata.name,
+        // token_symbol: tokenMetadata.symbol,
+        // token_totalSupply: "0",
+        // token_decimals: tokenMetadata.decimals,
+        token_name: "",
+        token_symbol: "",
+        token_totalSupply: "0",
+        token_decimals: 0,
+        token_ipfs: "",
+        token_owner: "",
+        network: 'stellar-testnet',
+        withdrawn: depositDetail[4],
+        tokenId: depositDetail[5] || BigInt(0),
+        isNFT: depositDetail[6],
+        migratedLockDepositId: BigInt(0),
+        isNFTMinted: false,
+      }
+    });
     } else {
-      await prisma.deposits.update({
+
+      await prisma.depositDetail.update({
         where: { id: `${depositId.toString()}-${networkTag}` },
         data: {
-          deposit_withdrawn: depositDetail[4],
-          deposit_tokenId: depositDetail[5] || BigInt(0),
-          deposit_isNFT: depositDetail[6],
-          deposit_migratedLockDepositId: BigInt(0),
-          deposit_isNFTMinted: false,
-          amount: depositDetail[2].toString(),
+          withdrawn: depositDetail[4],
+          tokenId: depositDetail[5] || BigInt(0),
+          isNFT: depositDetail[6],
+          migratedLockDepositId: BigInt(0),
+          isNFTMinted: false,
+          tokenAmount: depositDetail[2].toString(),
           unlockTime: BigInt(depositDetail[3] || 0),
         }
       });
     }
   } catch (error) {
     console.error('[TokenWithdraw] Error handling token withdraw event:', error);
+  }
+}
+
+export async function handleExtendLockDurationEvent(ev: DecodedEvent) {
+  console.log('[ExtendLockDuration]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+  try {
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    const depositId = ev.data[0];
+    const newUnlockTime = BigInt(ev.data[1] || 0);
+    const depositDetail = await getDepositDetails({
+      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      contractId: ev.contractId,
+      sourcePublicKey: PUBLIC_KEY,
+      depositId: depositId,
+    });
+    const deposit = await prisma.depositDetail.findUnique({
+      where: { id: `${depositId.toString()}-stellar-testnet` },
+      // todo update when network changes
+    });
+    if (!deposit) {
+      console.log(`[ExtendLockDuration] Deposit id ${depositId.toString()} not found, creating new record.`);
+      // If deposit not found, create it first
+      await createDepositDetail(depositId, ev.contractId);
+    }
+    await prisma.depositDetail.update({
+      where: { id: `${depositId.toString()}-stellar-testnet` },
+      data: {
+        withdrawn: depositDetail[4],
+        tokenId: depositDetail[5] || BigInt(0),
+        isNFT: depositDetail[6],
+        migratedLockDepositId: BigInt(0),
+        isNFTMinted: false,
+        tokenAmount: depositDetail[2].toString(),
+        unlockTime: newUnlockTime,
+      }
+    });
+    
+    await prisma.lockDurationExtendeds.create({
+      data: {
+        id: `${ev.txHash}-stellar-testnet`,
+        blockHeight: ev.ledger,
+        sequence: ev.ledger,
+        lockContractAddress: ev.contractId,
+        depositId: depositId.toString(),
+        unlockTime: newUnlockTime,
+        txHash: ev.txHash,
+        timestamp: BigInt(timestamp), // Convert to BigInt if needed
+        network: 'stellar-testnet', // Adjust as needed
+      }
+    });
+  }
+  catch (error) {
+    console.error('[ExtendLockDuration] Error handling extend lock duration event:', error);
   }
 }
 
@@ -597,9 +895,19 @@ export async function handleVestingCreatedEvent(ev: DecodedEvent) {
   }
 }
 
-async function createDeposit(depositId: number, contractId: string) {
+export async function handleVestingClaimedEvent(ev: DecodedEvent) {
+  console.log('[VestingClaimed]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
+  try {
+    const vestingAddress = ev.data[0];
+  } catch (error) {
+    console.error('[VestingClaimed] Error handling vesting claimed event:', error);
+  }
+}
+
+async function createDepositDetail(depositId: number, contractId: string) {
   // Check if deposit already exists
-  const existing = await prisma.deposits.findUnique({
+  console.log(`Creating deposit detail for id ${depositId} and contract ${contractId}`);
+  const existing = await prisma.depositDetail.findUnique({
     where: { id: `${depositId.toString()}-stellar-testnet` },
   });
   if (existing) {
@@ -625,20 +933,15 @@ async function createDeposit(depositId: number, contractId: string) {
     PUBLIC_KEY
   );
   // Create new deposit
-  await prisma.deposits.create({
+  await prisma.depositDetail.create({
     data: {
       id: `${depositId.toString()}-stellar-testnet`,
-      blockHeight: 0,
-      sequence: 0,
-      senderAddress: '',
       lockContractAddress: contractId,
       depositId: depositId.toString(),
       tokenAddress: tokenAddress || '',
       withdrawalAddress: depositDetail[1],
-      amount: depositDetail[2].toString(),
+      tokenAmount: depositDetail[2].toString(),
       unlockTime: BigInt(depositDetail[3]),
-      txHash: '',
-      timestamp: BigInt(0),
       token_name: tokenMetadata.name,
       token_symbol: tokenMetadata.symbol,
       token_totalSupply: tokenMetadata.totalSupply,
@@ -646,11 +949,11 @@ async function createDeposit(depositId: number, contractId: string) {
       token_ipfs: tokenMetadata.metadata,
       token_owner: tokenMetadata.owner,
       network: 'stellar-testnet',
-      deposit_withdrawn: depositDetail[4],
-      deposit_tokenId: depositDetail[5] || BigInt(0),
-      deposit_isNFT: depositDetail[6],
-      deposit_migratedLockDepositId: BigInt(0),
-      deposit_isNFTMinted: false,
+      withdrawn: depositDetail[4],
+      tokenId: depositDetail[5] || BigInt(0),
+      isNFT: depositDetail[6],
+      migratedLockDepositId: BigInt(0),
+      isNFTMinted: false,
     }
   });
 }

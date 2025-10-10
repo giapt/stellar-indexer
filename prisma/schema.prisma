@@ -54,14 +54,22 @@ model DepositDetail {
   network                   String
   tokenAddress              String
   withdrawalAddress         String
-  tokenAmount               BigInt
+  tokenAmount               String
   unlockTime                BigInt
   withdrawn                 Boolean
   tokenId                   BigInt
   isNFT                     Boolean
   migratedLockDepositId     BigInt
   isNFTMinted               Boolean
+  lockContractAddress       String
+  depositId                 String
 
+  token_owner               String?
+  token_name                String
+  token_symbol              String
+  token_totalSupply         String
+  token_decimals            Int
+  token_ipfs                String?
 }
 
 model deposits {
@@ -254,4 +262,103 @@ model vestings {
   token_totalSupply               String
   token_decimals                  Int
   token_ipfs                      String?
+}
+
+model lockDurationExtendeds {
+  id                        String  @id
+  network                   String
+  blockHeight               Int
+  sequence                  Int
+  lockContractAddress       String
+  
+  txHash                    String
+  timestamp                 BigInt
+
+  depositId                 String
+  unlockTime                BigInt
+
+  createdAt                 DateTime @default(now())
+}
+
+model lockSplits {
+  id                        String  @id
+  network                   String
+  blockHeight               Int
+  sequence                  Int
+  lockContractAddress       String
+
+  txHash                    String
+  timestamp                 BigInt
+
+  depositId                 String
+  remainingAmount           String
+  splitLockId               BigInt
+  newSplitLockAmount        String
+
+  createdAt                 DateTime @default(now())
+}
+
+model transferLocks {
+  id                        String  @id
+  network                   String
+  blockHeight               Int
+  sequence                  Int
+  lockContractAddress       String
+
+  txHash                    String
+  timestamp                 BigInt
+
+  depositId                 String    
+  receiverAddress           String
+
+  createdAt                 DateTime @default(now())
+}
+
+model logNftWithdrawals {
+  id                        String  @id
+  network                   String
+  blockHeight               Int
+  sequence                  Int
+  lockContractAddress       String
+
+  txHash                    String
+  timestamp                 BigInt
+
+  depositId                 String
+  tokenAddress              String
+  tokenId                   BigInt
+  withdrawalAddress         String
+  amount                    String
+  
+  deposit_withdrawn         Boolean
+  deposit_tokenId           BigInt
+  deposit_isNFT             Boolean
+  deposit_migratedLockDepositId     BigInt
+  deposit_isNFTMinted               Boolean
+
+  createdAt                 DateTime @default(now())
+}
+
+model logTokenWithdrawals {
+  id                        String  @id
+  network                   String
+  blockHeight               Int
+  sequence                  Int
+  lockContractAddress       String
+
+  txHash                    String
+  timestamp                 BigInt
+
+  depositId                 String
+  tokenAddress              String
+  withdrawalAddress         String
+  amount                    String
+  
+  deposit_withdrawn         Boolean
+  deposit_tokenId           BigInt
+  deposit_isNFT             Boolean
+  deposit_migratedLockDepositId     BigInt
+  deposit_isNFTMinted               Boolean
+
+  createdAt                 DateTime @default(now())
 }

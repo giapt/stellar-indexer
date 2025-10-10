@@ -7,7 +7,7 @@ async function main() {
   console.log('🚨 Truncating all data...');
   // Turn off FK checks, truncate, turn back on
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE "teamFinanceTokens", "SorobanEvent", "deposits", "token", "DepositDetail", "stakingPools", "multisendTokens", "vestings",
-    "nftDeposits", "lpDeposits" RESTART IDENTITY CASCADE;`);
+    "nftDeposits", "lpDeposits", "lockDurationExtendeds", "lockSplits", "transferLocks", "logNftWithdrawals", "logTokenWithdrawals" RESTART IDENTITY CASCADE;`);
 
   console.log('📦 Re-applying migrations...');
   execSync('npx prisma migrate deploy', { stdio: 'inherit' });
