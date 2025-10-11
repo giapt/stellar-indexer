@@ -17,7 +17,8 @@ async function getTransactionEnvelopeXDR(txHash: string): Promise<TransactionRes
   const res = await fetch(`${CFG.horizon}/transactions/${txHash}`);
   if (!res.ok) throw new Error(`Horizon tx fetch failed: ${res.status}`);
   const j = await res.json() as any;
-  console.log('Transaction created_at', j.created_at);
+  // console.log('Transaction fetched:', j);
+  // console.log('Transaction created_at', j.created_at);
   const timestamp= Math.floor(new Date(j.created_at).getTime() / 1000).toString();
   return {
     envelopeXDR: j.envelope_xdr as string,

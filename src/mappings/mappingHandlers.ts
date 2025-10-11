@@ -8,6 +8,7 @@ import {
   Networks,
 } from "@stellar/stellar-sdk";
 import { getDepositDetails } from '../utils/contract';
+import { getLockedTokenFromJson } from '../utils/json-helper';
 
 const DEBUG = process.env.DEBUG === 'true';
 const PUBLIC_KEY = process.env.PUBLIC_KEY || "GBXY232X43NSRHK35R4IGV5CTG3EGI6YWZ2GUA3WGPVYN6TWTW5P55VG";
@@ -81,8 +82,11 @@ export async function handleLpDepositEvent(ev: DecodedEvent) {
     const args =
     data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
     console.log('[LPDeposit] args:', args);
-    const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[1]?.contract_data?.key?.vec;
-    const depositId = contractData?.[1]?.u32 || 0;
+    // const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[1]?.contract_data?.key?.vec;
+    // const depositId = contractData?.[1]?.u32 || 0;
+    const lockIds = getLockedTokenFromJson(data);
+    console.log("[Deposit] locks:", lockIds);
+    const depositId = lockIds[0] || 0;
     console.log('[LPDeposit] depositId:', depositId);
 
     const tokenMetadata = await getMetadataLpToken(
@@ -167,9 +171,13 @@ export async function handleNftDepositEvent(ev: DecodedEvent) {
     const args =
     data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
     console.log('[Deposit] args:', args);
-    const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[1]?.contract_data?.key?.vec;
-    const depositId = contractData?.[1]?.u32 || 0;
-    console.log('[Deposit] depositId:', depositId);
+    // const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[1]?.contract_data?.key?.vec;
+    // const depositId = contractData?.[1]?.u32 || 0;
+    // console.log('[Deposit] depositId:', depositId);
+    const lockIds = getLockedTokenFromJson(data, "LockedNft");
+    // console.log("[Deposit] locks:", lockIds);
+    const depositId = lockIds[0] || 0;
+    console.log('[LPDeposit] depositId:', depositId);
 
     const nftMetadata = await getMetadataNft(
       process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
@@ -251,6 +259,8 @@ export async function handleDepositEvent(ev: DecodedEvent) {
     // console.log('[Deposit] decoded envelope', ev.contractId, data);
     const function_name = data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.function_name;
     // console.log('[Deposit] function_name:', function_name);
+    const lockIds = getLockedTokenFromJson(data);
+    console.log("[Deposit] locks:", lockIds);
     const args =
     data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
     //to do fix check args in split and create new
@@ -258,11 +268,9 @@ export async function handleDepositEvent(ev: DecodedEvent) {
 
     let depositId = 0;
     if (function_name === 'lock_token') {
-      const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[1]?.contract_data?.key?.vec;
-      depositId = contractData?.[1]?.u32 || 0;
+      depositId = lockIds[0];
     } else {
-      const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[2]?.contract_data?.key?.vec;
-      depositId = contractData?.[1]?.u32 || 0;
+      depositId = lockIds[1];
     }
     console.log('[Deposit] depositId:', depositId);
     const tokenAddress= ev.data[0];

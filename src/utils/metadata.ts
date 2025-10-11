@@ -202,10 +202,9 @@ export async function fetchTokenMetadata(
   };
 
   // run the four view calls in parallel (each is a single-op tx)
-  const [symbol, name, totalSupplyRaw, decimals] = await Promise.all([
-    simulateView("symbol"),
+  const [name, symbol, decimals] = await Promise.all([
     simulateView("name"),
-    simulateView("total_supply"),
+    simulateView("symbol"),
     simulateView("decimals")
   ]);
 
@@ -220,6 +219,13 @@ export async function fetchTokenMetadata(
     metadata = await simulateView("metadata");
   } catch (error) {
     console.warn('metadata view call failed:', error);
+  }
+
+  let totalSupplyRaw = BigInt('0');
+  try {
+    totalSupplyRaw = await simulateView("total_supply");
+  } catch (error) {
+    console.warn('total_supply view call failed:', error);
   }
 
   // totalSupply may come back as BigInt; normalize to string for safety
