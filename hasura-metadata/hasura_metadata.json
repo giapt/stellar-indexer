@@ -1,0 +1,685 @@
+{
+  "resource_version": 16,
+  "metadata": {
+    "version": 3,
+    "sources": [
+      {
+        "name": "default",
+        "kind": "postgres",
+        "tables": [
+          {
+            "table": {
+              "name": "DepositDetail",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "migratedLockDepositId",
+                    "tokenId",
+                    "unlockTime",
+                    "isNFT",
+                    "isNFTMinted",
+                    "withdrawn",
+                    "token_decimals",
+                    "depositId",
+                    "id",
+                    "lockContractAddress",
+                    "network",
+                    "tokenAddress",
+                    "tokenAmount",
+                    "token_ipfs",
+                    "token_name",
+                    "token_owner",
+                    "token_symbol",
+                    "token_totalSupply",
+                    "withdrawalAddress"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "SorobanEvent",
+              "schema": "public"
+            }
+          },
+          {
+            "table": {
+              "name": "_prisma_migrations",
+              "schema": "public"
+            }
+          },
+          {
+            "table": {
+              "name": "deposits",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "deposit_migratedLockDepositId",
+                    "deposit_tokenId",
+                    "timestamp",
+                    "unlockTime",
+                    "deposit_isNFT",
+                    "deposit_isNFTMinted",
+                    "deposit_withdrawn",
+                    "blockHeight",
+                    "sequence",
+                    "token_decimals",
+                    "amount",
+                    "depositId",
+                    "id",
+                    "lockContractAddress",
+                    "network",
+                    "senderAddress",
+                    "tokenAddress",
+                    "token_ipfs",
+                    "token_name",
+                    "token_owner",
+                    "token_symbol",
+                    "token_totalSupply",
+                    "txHash",
+                    "withdrawalAddress",
+                    "createdAt"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "lockDurationExtendeds",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "timestamp",
+                    "unlockTime",
+                    "blockHeight",
+                    "sequence",
+                    "depositId",
+                    "id",
+                    "lockContractAddress",
+                    "network",
+                    "txHash",
+                    "createdAt"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "lockSplits",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "splitLockId",
+                    "timestamp",
+                    "blockHeight",
+                    "sequence",
+                    "depositId",
+                    "id",
+                    "lockContractAddress",
+                    "network",
+                    "newSplitLockAmount",
+                    "remainingAmount",
+                    "txHash",
+                    "createdAt"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "logNftWithdrawals",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "deposit_migratedLockDepositId",
+                    "deposit_tokenId",
+                    "timestamp",
+                    "tokenId",
+                    "deposit_isNFT",
+                    "deposit_isNFTMinted",
+                    "deposit_withdrawn",
+                    "blockHeight",
+                    "sequence",
+                    "amount",
+                    "depositId",
+                    "id",
+                    "lockContractAddress",
+                    "network",
+                    "tokenAddress",
+                    "txHash",
+                    "withdrawalAddress",
+                    "createdAt"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "logTokenWithdrawals",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "deposit_migratedLockDepositId",
+                    "deposit_tokenId",
+                    "timestamp",
+                    "deposit_isNFT",
+                    "deposit_isNFTMinted",
+                    "deposit_withdrawn",
+                    "blockHeight",
+                    "sequence",
+                    "amount",
+                    "depositId",
+                    "id",
+                    "lockContractAddress",
+                    "network",
+                    "tokenAddress",
+                    "txHash",
+                    "withdrawalAddress",
+                    "createdAt"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "lpDeposits",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "deposit_migratedLockDepositId",
+                    "deposit_tokenId",
+                    "timestamp",
+                    "unlockTime",
+                    "deposit_isNFT",
+                    "deposit_isNFTMinted",
+                    "deposit_withdrawn",
+                    "blockHeight",
+                    "sequence",
+                    "token_decimals",
+                    "amount",
+                    "depositId",
+                    "id",
+                    "lockContractAddress",
+                    "network",
+                    "senderAddress",
+                    "tokenAddress",
+                    "token_ipfs",
+                    "token_name",
+                    "token_owner",
+                    "token_symbol",
+                    "token_totalSupply",
+                    "txHash",
+                    "withdrawalAddress",
+                    "createdAt"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "multisendTokens",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "timestamp",
+                    "blockHeight",
+                    "sequence",
+                    "token_decimals",
+                    "amounts",
+                    "contractAddress",
+                    "from",
+                    "id",
+                    "network",
+                    "recipients",
+                    "tokenAddress",
+                    "token_ipfs",
+                    "token_name",
+                    "token_owner",
+                    "token_symbol",
+                    "token_totalSupply",
+                    "txHash"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "nftDeposits",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "deposit_migratedLockDepositId",
+                    "deposit_tokenId",
+                    "timestamp",
+                    "tokenId",
+                    "unlockTime",
+                    "deposit_isNFT",
+                    "deposit_isNFTMinted",
+                    "deposit_withdrawn",
+                    "blockHeight",
+                    "sequence",
+                    "amount",
+                    "depositId",
+                    "id",
+                    "lockContractAddress",
+                    "network",
+                    "nft_ipfs",
+                    "nft_name",
+                    "nft_owner",
+                    "nft_symbol",
+                    "senderAddress",
+                    "tokenAddress",
+                    "txHash",
+                    "withdrawalAddress",
+                    "createdAt"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "stakingPools",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "endTime",
+                    "poolIndex",
+                    "startTime",
+                    "timestamp",
+                    "blockHeight",
+                    "rewardToken_decimals",
+                    "sequence",
+                    "stakingToken_decimals",
+                    "contractId",
+                    "id",
+                    "network",
+                    "owner",
+                    "precision",
+                    "rewardToken",
+                    "rewardToken_ipfs",
+                    "rewardToken_name",
+                    "rewardToken_owner",
+                    "rewardToken_symbol",
+                    "rewardToken_totalSupply",
+                    "stakingContract",
+                    "stakingToken",
+                    "stakingToken_ipfs",
+                    "stakingToken_name",
+                    "stakingToken_owner",
+                    "stakingToken_symbol",
+                    "stakingToken_totalSupply",
+                    "totalReward",
+                    "txHash"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "teamFinanceTokens",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "timestamp",
+                    "blockHeight",
+                    "decimals",
+                    "sequence",
+                    "address",
+                    "contractId",
+                    "envelopeXdr",
+                    "id",
+                    "ipfs",
+                    "name",
+                    "network",
+                    "owner",
+                    "symbol",
+                    "totalSupply",
+                    "txHash",
+                    "createdAt"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "token",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "decimals",
+                    "address",
+                    "id",
+                    "ipfs",
+                    "name",
+                    "network",
+                    "owner",
+                    "symbol",
+                    "totalSupply",
+                    "createdAt"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "transferLocks",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "timestamp",
+                    "blockHeight",
+                    "sequence",
+                    "depositId",
+                    "id",
+                    "lockContractAddress",
+                    "network",
+                    "receiverAddress",
+                    "txHash",
+                    "createdAt"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "vestings",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "timestamp",
+                    "blockHeight",
+                    "sequence",
+                    "token_decimals",
+                    "claimed",
+                    "creator",
+                    "factoryContractAddress",
+                    "fee",
+                    "id",
+                    "merkleRoot",
+                    "network",
+                    "tokenAddress",
+                    "tokenTotal",
+                    "token_ipfs",
+                    "token_name",
+                    "token_owner",
+                    "token_symbol",
+                    "token_totalSupply",
+                    "txHash",
+                    "vestingAddress",
+                    "vesting_list_hash"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          }
+        ],
+        "configuration": {
+          "connection_info": {
+            "database_url": {
+              "from_env": "HASURA_GRAPHQL_DATABASE_URL"
+            },
+            "isolation_level": "read-committed",
+            "pool_settings": {
+              "connection_lifetime": 600,
+              "idle_timeout": 180,
+              "max_connections": 50,
+              "retries": 1
+            },
+            "use_prepared_statements": true
+          }
+        }
+      }
+    ]
+  }
+}

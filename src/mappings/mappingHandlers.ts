@@ -204,15 +204,15 @@ export async function handleNftDepositEvent(ev: DecodedEvent) {
         depositId: depositId.toString(),
         tokenAddress: args?.[1]?.address || '',
         withdrawalAddress: args?.[2]?.address || '',
-        amount: args?.[3]?.i128 || "0",
-        unlockTime: BigInt(args?.[4]?.u64) || BigInt(0),
+        amount: ev.data[3] || "0",
+        unlockTime: BigInt(ev.data[4]) || BigInt(0),
         txHash: ev.txHash,
         timestamp: BigInt(timestamp), // Convert to BigInt if needed
         tokenId: BigInt(ev.data[1]),
         nft_name: nftMetadata.name,
         nft_symbol: nftMetadata.symbol,
         nft_ipfs: "",
-        nft_owner: ev.data[2],
+        nft_owner: args?.[0]?.address || '',
         network: 'stellar-testnet', // Adjust as needed
         deposit_withdrawn: depositDetail[4],
         deposit_tokenId: depositDetail[5] || BigInt(0),
