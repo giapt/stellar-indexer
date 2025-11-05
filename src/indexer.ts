@@ -13,7 +13,9 @@ import { handleDepositEvent, handleUpdateMetadataEvent,
   handleLpDepositEvent, handleNftDepositEvent,
   handleTransferLockEvent, handleSplitLockEvent,
   handleTokenWithdrawEvent, handleVestingClaimedEvent,
-  handleExtendLockDurationEvent, handleNftWithdrawEvent
+  handleExtendLockDurationEvent, handleNftWithdrawEvent,
+  handleStakingClaimEvent, handleStakingDepositEvent,
+  handleStakingWithdrawEvent
 } from './mappings/mappingHandlers';
 import { prisma } from './prismaConfig'; // Ensure you have a Prisma client instance
 
@@ -90,6 +92,21 @@ const HANDLERS: EventHandlerDef[] = [
     handler: handleVestingClaimedEvent,
     kind: StellarHandlerKind.Event,
     filter: { topics: ['TEAM_FINANCE_VESTING', 'claim', '*', '*'] },
+  },
+  {
+    handler: handleStakingClaimEvent,
+    kind: StellarHandlerKind.Event,
+    filter: { topics: ['TEAM_FINANCE_STAKING', 'claim', '*', '*'] },
+  },
+  {
+    handler: handleStakingDepositEvent,
+    kind: StellarHandlerKind.Event,
+    filter: { topics: ['TEAM_FINANCE_STAKING', 'deposit', '*', '*'] },
+  },
+  {
+    handler: handleStakingWithdrawEvent,
+    kind: StellarHandlerKind.Event,
+    filter: { topics: ['TEAM_FINANCE_STAKING', 'withdraw', '*', '*'] },
   },
 ];
 // ========================

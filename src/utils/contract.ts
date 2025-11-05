@@ -20,6 +20,8 @@ export async function getDepositDetails({
   sourcePublicKey: string;
   depositId: number
 }) {
+  // add retry if failed?
+  
   const server = new rpc.Server(rpcUrl);
 
   // You still need a valid on-ledger account to build a tx to simulate
@@ -38,8 +40,11 @@ export async function getDepositDetails({
         nativeToScVal(depositId, { type: "u32" }) // <-- ID = 1 as u32
       )
     )
-    .setTimeout(30)
+    .setTimeout(300)
     .build();
+  
+  const xdr = tx.toXDR();
+  console.log('get_deposit_details tx XDR:', xdr);
 
   // Simulate (read-only; nothing is submitted)
   const sim = await server.simulateTransaction(tx);

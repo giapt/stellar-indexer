@@ -9,9 +9,11 @@ import {
 } from "@stellar/stellar-sdk";
 import { getDepositDetails } from '../utils/contract';
 import { getLockedTokenFromJson } from '../utils/json-helper';
+import { SOROBAN_RPC_URL } from '../common/chains';
 
 const DEBUG = process.env.DEBUG === 'true';
 const PUBLIC_KEY = process.env.PUBLIC_KEY || "GBXY232X43NSRHK35R4IGV5CTG3EGI6YWZ2GUA3WGPVYN6TWTW5P55VG";
+const PUBLIC_KEY2 = "GBWCJP6FZLGKLPD64F6CK4ROZUZFUCXKPTGA65JBXENGPMMBAI2GW4QB";
 
 
 // ==== Your handlers ====
@@ -90,14 +92,14 @@ export async function handleLpDepositEvent(ev: DecodedEvent) {
     console.log('[LPDeposit] depositId:', depositId);
 
     const tokenMetadata = await getMetadataLpToken(
-      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
+      process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
       process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
       args?.[1]?.address,
       PUBLIC_KEY
     );
 
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
       networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
@@ -187,7 +189,7 @@ export async function handleNftDepositEvent(ev: DecodedEvent) {
     );
 
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
       networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
@@ -286,7 +288,7 @@ export async function handleDepositEvent(ev: DecodedEvent) {
     );
 
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
       networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
@@ -362,7 +364,7 @@ export async function handleDepositEvent(ev: DecodedEvent) {
         id: `${depositId.toString()}-stellar-testnet`,
         lockContractAddress: ev.contractId,
         depositId: depositId.toString(),
-        tokenAddress: args?.[1]?.address || '',
+        tokenAddress: ev.data[0] || '',
         withdrawalAddress: depositDetail[1],
         tokenAmount: depositDetail[2].toString(),
         unlockTime: BigInt(depositDetail[3]),
@@ -395,7 +397,7 @@ export async function handleTransferLockEvent(ev: DecodedEvent) {
     const newOwner = ev.data[2];
     const depositId = ev.data[0];
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
       networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
@@ -442,7 +444,7 @@ export async function handleSplitLockEvent(ev: DecodedEvent) {
     console.log('Update deposit id:', ev.data[0]);
     const depositId = ev.data[0];
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
       networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
@@ -501,7 +503,7 @@ export async function handleNftWithdrawEvent(ev: DecodedEvent) {
     const networkTag = passphrase === Networks.PUBLIC ? 'stellar-mainnet' : 'stellar-testnet';
     const depositId = ev.data[0];
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
       networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
@@ -513,7 +515,7 @@ export async function handleNftWithdrawEvent(ev: DecodedEvent) {
       process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
       process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
       tokenAddress,
-      PUBLIC_KEY
+      PUBLIC_KEY2
     );
     await prisma.logNftWithdrawals.create({
       data: {
@@ -593,19 +595,19 @@ export async function handleTokenWithdrawEvent(ev: DecodedEvent) {
     const networkTag = passphrase === Networks.PUBLIC ? 'stellar-mainnet' : 'stellar-testnet';
     const depositId = ev.data[0];
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
       networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
       depositId: depositId,
     });
     const tokenAddress= ev.data[1];
-    // const tokenMetadata = await getMetadataLpToken(
-    //   process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
-    //   process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
-    //   tokenAddress,
-    //   PUBLIC_KEY
-    // );
+    const tokenMetadata = await getMetadataLpToken(
+      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
+      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      tokenAddress,
+      PUBLIC_KEY
+    );
     // todo fix call token metadata here
 
     await prisma.logTokenWithdrawals.create({
@@ -688,7 +690,7 @@ export async function handleExtendLockDurationEvent(ev: DecodedEvent) {
     const depositId = ev.data[0];
     const newUnlockTime = BigInt(ev.data[1] || 0);
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
       networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
@@ -904,11 +906,80 @@ export async function handleVestingCreatedEvent(ev: DecodedEvent) {
 }
 
 export async function handleVestingClaimedEvent(ev: DecodedEvent) {
-  console.log('[VestingClaimed]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
+  console.log('[VestingClaimed]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
     const vestingAddress = ev.data[0];
   } catch (error) {
     console.error('[VestingClaimed] Error handling vesting claimed event:', error);
+  }
+}
+
+export async function handleStakingClaimEvent(ev: DecodedEvent) {
+  console.log('[StakingClaim]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+  try {
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    await prisma.stakingClaims.create({
+      data: {
+        id: `${ev.txHash}-stellar-testnet`,
+        blockHeight: ev.ledger,
+        sequence: ev.ledger,
+        contractAddress: ev.contractId,
+        poolIndex: ev.data[2].toString(),
+        user: ev.data[0],
+        amount: ev.data[1],
+        txHash: ev.txHash,
+        timestamp: BigInt(timestamp), // Convert to BigInt if needed
+        network: 'stellar-testnet', // Adjust as needed
+      }
+    });
+  }  catch (error) {
+    console.error('[StakingClaim] Error handling staking claim event:', error);
+  }
+}
+
+export async function handleStakingDepositEvent(ev: DecodedEvent) {
+  console.log('[StakingDeposit]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+  try {
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    await prisma.stakingDeposits.create({
+      data: {
+        id: `${ev.txHash}-stellar-testnet`,
+        blockHeight: ev.ledger,
+        sequence: ev.ledger,
+        contractAddress: ev.contractId,
+        poolIndex: ev.data[2].toString(),
+        user: ev.data[0],
+        amount: ev.data[1],
+        txHash: ev.txHash,
+        timestamp: BigInt(timestamp), // Convert to BigInt if needed
+        network: 'stellar-testnet', // Adjust as needed
+      }
+    });
+  }  catch (error) {
+    console.error('[StakingDeposit] Error handling staking deposit event:', error);
+  }
+}
+
+export async function handleStakingWithdrawEvent(ev: DecodedEvent) {
+  console.log('[StakingWithdraw]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+  try {
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    await prisma.stakingWithdraws.create({
+      data: {
+        id: `${ev.txHash}-stellar-testnet`,
+        blockHeight: ev.ledger,
+        sequence: ev.ledger,
+        contractAddress: ev.contractId,
+        poolIndex: ev.data[2].toString(),
+        user: ev.data[0],
+        amount: ev.data[1],
+        txHash: ev.txHash,
+        timestamp: BigInt(timestamp), // Convert to BigInt if needed
+        network: 'stellar-testnet', // Adjust as needed
+      }
+    });
+  }  catch (error) {
+    console.error('[StakingWithdraw] Error handling staking withdraw event:', error);
   }
 }
 
@@ -923,7 +994,7 @@ async function createDepositDetail(depositId: number, contractId: string) {
     return;
   }
   const depositDetail = await getDepositDetails({
-    rpcUrl: process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org",
+    rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
     networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
     contractId: contractId,
     sourcePublicKey: PUBLIC_KEY,

@@ -362,3 +362,79 @@ model logTokenWithdrawals {
 
   createdAt                 DateTime @default(now())
 }
+
+model vestingClaims {
+  id                              String  @id
+  network                         String
+  blockHeight                     Int
+  sequence                        Int
+  timestamp                       BigInt
+  txHash                          String
+  contractAddress                 String
+
+  account                         String
+  vesting                         String
+  amount                          String
+
+  userVesting_totalClaimed        String
+
+  createdAt                 DateTime @default(now())
+}
+
+model UserVesting {
+  id                              String  @id
+  network                         String
+  vestingContractAddress          String
+  account                         String
+  totalClaimed                    String
+
+  createdAt                 DateTime @default(now())
+}
+
+model stakingClaims {
+  id                              String  @id
+  network                         String
+  blockHeight                     Int
+  sequence                        Int
+  timestamp                       BigInt
+  txHash                          String
+  
+  user                            String
+  amount                          String
+  poolIndex                       BigInt
+  contractAddress                 String
+
+  createdAt                 DateTime @default(now())
+}
+
+model stakingDeposits {
+  id                              String  @id
+  network                         String
+  blockHeight                     Int
+  sequence                        Int
+  timestamp                       BigInt
+  txHash                          String
+  
+  user                            String
+  amount                          String
+  poolIndex                       BigInt
+  contractAddress                 String
+
+  createdAt                 DateTime @default(now())
+}
+
+model stakingWithdraws {
+  id                              String  @id
+  network                         String
+  blockHeight                     Int
+  sequence                        Int
+  timestamp                       BigInt
+  txHash                          String
+  
+  user                            String
+  amount                          String
+  poolIndex                       BigInt
+  contractAddress                 String
+
+  createdAt                 DateTime @default(now())
+}
