@@ -1,5 +1,5 @@
 {
-  "resource_version": 16,
+  "resource_version": 9,
   "metadata": {
     "version": 3,
     "sources": [
@@ -59,6 +59,77 @@
               "name": "SorobanEvent",
               "schema": "public"
             }
+          },
+          {
+            "table": {
+              "name": "UserPool",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "poolIndex",
+                    "claimed",
+                    "contractAddress",
+                    "deposit",
+                    "id",
+                    "network",
+                    "user",
+                    "withdraw",
+                    "createdAt"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "UserVesting",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "account",
+                    "id",
+                    "network",
+                    "totalClaimed",
+                    "vestingContractAddress",
+                    "createdAt"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
           },
           {
             "table": {
@@ -440,6 +511,84 @@
           },
           {
             "table": {
+              "name": "stakingClaims",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "poolIndex",
+                    "timestamp",
+                    "blockHeight",
+                    "sequence",
+                    "amount",
+                    "contractAddress",
+                    "id",
+                    "network",
+                    "txHash",
+                    "user",
+                    "createdAt"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "stakingDeposits",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "poolIndex",
+                    "timestamp",
+                    "blockHeight",
+                    "sequence",
+                    "amount",
+                    "contractAddress",
+                    "id",
+                    "network",
+                    "txHash",
+                    "user",
+                    "createdAt"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
               "name": "stakingPools",
               "schema": "public"
             },
@@ -476,6 +625,45 @@
                     "stakingToken_totalSupply",
                     "totalReward",
                     "txHash"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "stakingWithdraws",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "poolIndex",
+                    "timestamp",
+                    "blockHeight",
+                    "sequence",
+                    "amount",
+                    "contractAddress",
+                    "id",
+                    "network",
+                    "txHash",
+                    "user",
+                    "createdAt"
                   ],
                   "filter": {},
                   "allow_aggregations": true,
@@ -595,6 +783,46 @@
                     "network",
                     "receiverAddress",
                     "txHash",
+                    "createdAt"
+                  ],
+                  "filter": {},
+                  "allow_aggregations": true,
+                  "query_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ],
+                  "subscription_root_fields": [
+                    "select",
+                    "select_aggregate",
+                    "select_by_pk"
+                  ]
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "vestingClaims",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "public",
+                "permission": {
+                  "columns": [
+                    "timestamp",
+                    "blockHeight",
+                    "sequence",
+                    "account",
+                    "amount",
+                    "contractAddress",
+                    "id",
+                    "network",
+                    "txHash",
+                    "userVesting_totalClaimed",
+                    "vesting",
                     "createdAt"
                   ],
                   "filter": {},

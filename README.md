@@ -82,6 +82,7 @@ docker run --env-file .env -p 8080:8080 stellar-indexer
 ```
 or
 ```bash
+npx prisma generate
 docker compose up --build -d
 ```
 
