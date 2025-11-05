@@ -438,3 +438,17 @@ model stakingWithdraws {
 
   createdAt                 DateTime @default(now())
 }
+
+model UserPool {
+  id                              String  @id
+  network                         String
+
+  contractAddress                 String
+  poolIndex                       BigInt
+  user                            String
+  deposit                         String
+  withdraw                        String
+  claimed                         String
+
+  createdAt                       DateTime @default(now())
+}

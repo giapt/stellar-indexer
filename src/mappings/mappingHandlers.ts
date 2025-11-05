@@ -908,7 +908,24 @@ export async function handleVestingCreatedEvent(ev: DecodedEvent) {
 export async function handleVestingClaimedEvent(ev: DecodedEvent) {
   console.log('[VestingClaimed]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
-    const vestingAddress = ev.data[0];
+    const vestingAddress = ev.contractId;
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    await prisma.vestingClaims.create({
+      data: {
+        id: `${ev.txHash}-stellar-testnet`,
+        blockHeight: ev.ledger,
+        sequence: ev.ledger,
+        contractAddress: vestingAddress,
+        vesting: vestingAddress,
+        account: ev.data[0],
+        amount: ev.data[1],
+        userVesting_totalClaimed: ev.data[1],
+        txHash: ev.txHash,
+        timestamp: BigInt(timestamp), // Convert to BigInt if needed
+        network: 'stellar-testnet', // Adjust as needed
+      }
+    });
+
   } catch (error) {
     console.error('[VestingClaimed] Error handling vesting claimed event:', error);
   }
