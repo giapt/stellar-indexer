@@ -910,6 +910,39 @@ export async function handleVestingClaimedEvent(ev: DecodedEvent) {
   try {
     const vestingAddress = ev.contractId;
     const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    let totalClaim = BigInt(0);
+    const userVesting = await prisma.userVesting.findFirst({
+      where: {
+        vestingContractAddress: vestingAddress,
+        account: ev.data[0],
+        network: 'stellar-testnet',
+      }
+    });
+    if (!userVesting) {
+      totalClaim = BigInt(ev.data[1] || 0);
+      console.log(`[VestingClaimed] UserVesting for account ${ev.data[0]} and vesting ${vestingAddress} not found.`);
+      await prisma.userVesting.create({
+        data: {
+          id: `${ev.txHash}-${ev.data[0]}-stellar-testnet`,
+          vestingContractAddress: vestingAddress,
+          account: ev.data[0],
+          totalClaimed: totalClaim.toString(),
+          network: 'stellar-testnet',
+        }
+      });
+    } else {
+      totalClaim = BigInt(userVesting.totalClaimed) + BigInt(ev.data[1] || 0);
+      await prisma.userVesting.updateMany({
+        where: {
+          vestingContractAddress: vestingAddress,
+          account: ev.data[0],
+          network: 'stellar-testnet',
+        },
+        data: {
+          totalClaimed: totalClaim.toString(),
+        }
+      });
+    }
     await prisma.vestingClaims.create({
       data: {
         id: `${ev.txHash}-stellar-testnet`,
@@ -919,7 +952,7 @@ export async function handleVestingClaimedEvent(ev: DecodedEvent) {
         vesting: vestingAddress,
         account: ev.data[0],
         amount: ev.data[1],
-        userVesting_totalClaimed: ev.data[1],
+        userVesting_totalClaimed: totalClaim.toString(),
         txHash: ev.txHash,
         timestamp: BigInt(timestamp), // Convert to BigInt if needed
         network: 'stellar-testnet', // Adjust as needed
@@ -928,6 +961,45 @@ export async function handleVestingClaimedEvent(ev: DecodedEvent) {
 
   } catch (error) {
     console.error('[VestingClaimed] Error handling vesting claimed event:', error);
+  }
+}
+
+async function updateUserPool(network: string, contractId: string, poolIndex: number, claim: string, deposit: string, withdraw: string, user: string) {
+  const userPool = await prisma.userPool.findFirst({
+    where: {
+      contractAddress: contractId,
+      poolIndex: BigInt(poolIndex),
+      user: user,
+      network: network,
+    }
+  });
+  if (!userPool) {
+    await prisma.userPool.create({
+      data: {
+        id: `${contractId}-${poolIndex.toString()}-${user}-${network}`,
+        contractAddress: contractId,
+        poolIndex: BigInt(poolIndex),
+        user: user,
+        claimed: claim,
+        deposit: deposit,
+        withdraw: withdraw,
+        network: network,
+      }
+    });
+  } else {
+    await prisma.userPool.updateMany({
+      where: {
+        contractAddress: contractId,
+        poolIndex: BigInt(poolIndex),
+        user: user,
+        network: network,
+      },
+      data: {
+        claimed: userPool.claimed ? (BigInt(userPool.claimed) + BigInt(claim)).toString() : claim,
+        deposit: userPool.deposit ? (BigInt(userPool.deposit) + BigInt(deposit)).toString() : deposit,
+        withdraw: userPool.withdraw ? (BigInt(userPool.withdraw) + BigInt(withdraw)).toString() : withdraw,
+      }
+    });
   }
 }
 
@@ -949,6 +1021,7 @@ export async function handleStakingClaimEvent(ev: DecodedEvent) {
         network: 'stellar-testnet', // Adjust as needed
       }
     });
+    updateUserPool('stellar-testnet', ev.contractId, Number(ev.data[2]), ev.data[1], "0", "0", ev.data[0]);
   }  catch (error) {
     console.error('[StakingClaim] Error handling staking claim event:', error);
   }
@@ -972,6 +1045,7 @@ export async function handleStakingDepositEvent(ev: DecodedEvent) {
         network: 'stellar-testnet', // Adjust as needed
       }
     });
+    updateUserPool('stellar-testnet', ev.contractId, Number(ev.data[2]), "0", ev.data[1], "0", ev.data[0]);
   }  catch (error) {
     console.error('[StakingDeposit] Error handling staking deposit event:', error);
   }
@@ -995,6 +1069,7 @@ export async function handleStakingWithdrawEvent(ev: DecodedEvent) {
         network: 'stellar-testnet', // Adjust as needed
       }
     });
+    updateUserPool('stellar-testnet', ev.contractId, Number(ev.data[2]), "0", "0", ev.data[1], ev.data[0]);
   }  catch (error) {
     console.error('[StakingWithdraw] Error handling staking withdraw event:', error);
   }
