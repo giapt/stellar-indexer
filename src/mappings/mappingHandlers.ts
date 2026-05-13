@@ -254,6 +254,7 @@ export async function handleNftDepositEvent(ev: DecodedEvent) {
 }
 
 export async function handleDepositEvent(ev: DecodedEvent) {
+   
   console.log('[Deposit]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
     const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
@@ -262,11 +263,11 @@ export async function handleDepositEvent(ev: DecodedEvent) {
     const function_name = data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.function_name;
     // console.log('[Deposit] function_name:', function_name);
     const lockIds = getLockedTokenFromJson(data);
-    console.log("[Deposit] locks:", lockIds);
+    if (DEBUG) console.log("[Deposit] locks:", lockIds);
     const args =
     data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
     //to do fix check args in split and create new
-    console.log('[Deposit] args:', args);
+    if (DEBUG) console.log('[Deposit] args:', args);
 
     let depositId = 0;
     if (function_name === 'lock_token') {
@@ -274,11 +275,13 @@ export async function handleDepositEvent(ev: DecodedEvent) {
     } else {
       depositId = lockIds[1];
     }
-    console.log('[Deposit] depositId:', depositId);
+    if (DEBUG) console.log('[Deposit] depositId:', depositId);
     const tokenAddress= ev.data[0];
     const withdrawalAddress= ev.data[1];
     const amount= ev.data[2];
     const unlockTime= BigInt(ev.data[3] || 0);
+    const isLP = args?.[6]?.bool || false;
+    // if (DEBUG) console.log('[Deposit] isLP:', isLP);
 
     const tokenMetadata = await getMetadata(
       process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
@@ -294,11 +297,16 @@ export async function handleDepositEvent(ev: DecodedEvent) {
       sourcePublicKey: PUBLIC_KEY,
       depositId: depositId,
     });
+    if (isLP) {
+      console.log('[Deposit] Detected LP token deposit, fetching LP metadata');
+    }
     // console.log('[Deposit] depositDetail:', depositDetail);
     const deposit = await prisma.deposits.findUnique({
       where: { id: `${depositId.toString()}-stellar-testnet` },
       // todo update when network changes
     });
+    
+
     if (deposit) {
       await prisma.deposits.update({
         where: { id: `${depositId.toString()}-stellar-testnet` },
