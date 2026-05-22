@@ -43,3 +43,11 @@ export function getLockedTokenFromJson(json: any, symbol = "LockedToken"): numbe
   const resultArray = matches.map((m) => m.node?.vec?.[1]?.u32);
   return resultArray;
 }
+
+export function getValueFromJson(json: any, symbol = "PoolInfo"): number[] {
+  const matches = findVecWithSymbol(json, symbol);
+
+  // Convert results to an array of objects (if you just want the nodes)
+  const resultArray = matches.map((m) => m.node?.vec?.[1]?.u32);
+  return resultArray;
+}

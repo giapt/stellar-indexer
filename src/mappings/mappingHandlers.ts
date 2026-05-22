@@ -8,7 +8,7 @@ import {
   Networks,
 } from "@stellar/stellar-sdk";
 import { getDepositDetails } from '../utils/contract';
-import { getLockedTokenFromJson } from '../utils/json-helper';
+import { getLockedTokenFromJson, getValueFromJson } from '../utils/json-helper';
 import { SOROBAN_RPC_URL } from '../common/chains';
 
 const DEBUG = process.env.DEBUG === 'true';
@@ -283,12 +283,12 @@ export async function handleDepositEvent(ev: DecodedEvent) {
     const isLP = args?.[6]?.bool || false;
     // if (DEBUG) console.log('[Deposit] isLP:', isLP);
 
-    const tokenMetadata = await getMetadata(
-      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
-      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
-      tokenAddress,
-      PUBLIC_KEY
-    );
+    
+
+    const blockHeight = ev.ledger;
+    const sequence = ev.ledger;
+    const senderAddress = args?.[0]?.address || '';
+    const lockContractAddress = ev.contractId;
 
     const depositDetail = await getDepositDetails({
       rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
@@ -299,6 +299,41 @@ export async function handleDepositEvent(ev: DecodedEvent) {
     });
     if (isLP) {
       console.log('[Deposit] Detected LP token deposit, fetching LP metadata');
+      const tokenMetadata = await getMetadataLpToken(
+        process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
+        process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+        args?.[1]?.address,
+        PUBLIC_KEY
+      );
+      await prisma.lpDeposits.create({
+      data: {
+        id: `${depositId.toString()}-lp-deposit-stellar-testnet`,
+        blockHeight: ev.ledger,
+        sequence: ev.ledger,
+        senderAddress: args?.[0]?.address || '',
+        lockContractAddress: ev.contractId,
+        depositId: depositId.toString(),
+        tokenAddress: args?.[1]?.address || '',
+        withdrawalAddress: args?.[2]?.address || '',
+        amount: args?.[3]?.i128 || "0",
+        unlockTime: BigInt(args?.[4]?.u64) || BigInt(0),
+        txHash: ev.txHash,
+        timestamp: BigInt(timestamp), // Convert to BigInt if needed
+        token_name: tokenMetadata.name,
+        token_symbol: tokenMetadata.symbol,
+        token_totalSupply: "0",
+        token_decimals: tokenMetadata.decimals,
+        token_ipfs: "",
+        token_owner: "",
+        network: 'stellar-testnet', // Adjust as needed
+        deposit_withdrawn: depositDetail[4],
+        deposit_tokenId: depositDetail[5] || BigInt(0),
+        deposit_isNFT: depositDetail[6],
+        deposit_migratedLockDepositId: BigInt(0),
+        deposit_isNFTMinted: false,
+      }
+    });
+    return;
     }
     // console.log('[Deposit] depositDetail:', depositDetail);
     const deposit = await prisma.deposits.findUnique({
@@ -306,6 +341,12 @@ export async function handleDepositEvent(ev: DecodedEvent) {
       // todo update when network changes
     });
     
+    const tokenMetadata = await getMetadata(
+      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
+      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      tokenAddress,
+      PUBLIC_KEY
+    );
 
     if (deposit) {
       await prisma.deposits.update({
@@ -750,10 +791,13 @@ export async function handleStakingPoolCreatedEvent(ev: DecodedEvent) {
   try {
     const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
     // console.log('[StakingPoolCreated] decoded envelope XDR:', envelopeXdr);
-    const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[0]?.contract_data?.key?.vec;
+    // const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[0]?.contract_data?.key?.vec;
     // console.log('[StakingPoolCreated] contractData:', contractData);
-    const poolId = contractData?.[1]?.u32 || 0;
+    // const poolId = contractData?.[1]?.u32 || 0;
     // console.log('[StakingPoolCreated] poolId:', poolId);
+    const poolIds = getValueFromJson(data, "PoolInfo");
+    const poolId = BigInt(poolIds[0] || 0);
+    // console.log('[StakingPoolCreated]2 poolId:', poolId);
 
     const args =
     data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
@@ -783,7 +827,7 @@ export async function handleStakingPoolCreatedEvent(ev: DecodedEvent) {
         sequence: ev.ledger,
         stakingContract: ev.contractId,
         contractId: ev.contractId,
-        poolIndex: poolId.toString(),
+        poolIndex: poolId,
         stakingToken: stakingTokenAddress,
         rewardToken: rewardTokenAddress,
         startTime,
