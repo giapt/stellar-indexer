@@ -1,5 +1,4 @@
 // src/indexer.ts
-import { CFG } from './config';
 import { getLatestLedger } from './horizon';
 import { getEventsRange } from './rpc';
 import {
@@ -18,6 +17,7 @@ import { handleDepositEvent, handleUpdateMetadataEvent,
   handleStakingWithdrawEvent
 } from './mappings/mappingHandlers';
 import { prisma } from './prismaConfig'; // Ensure you have a Prisma client instance
+import { NetworkConfig } from './config';
 
 const CHUNK = 100;
 
@@ -115,16 +115,17 @@ function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export async function runIndexer() {
-  let cursor = CFG.startLedger;
+export async function runIndexer(net: NetworkConfig) {
+  let cursor = net.startLedger;
+  console.log(`Starting indexer for ${net.name} from ledger ${cursor}...`);
 
   for (;;) {
     try {
-      const horizonHead = await getLatestLedger();
+      const horizonHead = await getLatestLedger(net);
       let end = Math.min(cursor + CHUNK - 1, horizonHead);
 
       // Request ALL events (no filters)
-      const res = await getEventsRange(cursor, end+1);
+      const res = await getEventsRange(net.rpc,cursor, end+1);
       // console.log(`RPC returned ${res.events} events for ledgers ${cursor}-${end}`, JSON.stringify(res, null, 2));
 
       // If outside window, your previous reposition logic can stay here (if you kept it in rpc.ts, expose rangeHint)
@@ -142,7 +143,7 @@ export async function runIndexer() {
         for (const def of HANDLERS) {
           if (eventMatchesHandler(ev, def)) {
             matched.push(ev);
-            await def.handler(ev); // run handler
+            await def.handler(ev, net); // run handler
             break;                 // stop at first match; remove if multiple handlers can apply
           }
         }
@@ -151,7 +152,7 @@ export async function runIndexer() {
       if (matched.length) {
         await prisma.sorobanEvent.createMany({
           data: matched.map(e => ({
-            network: 'stellar-testnet', // Adjust as needed
+            network: net.name, // Adjust as needed
             txHash: e.txHash,
             contractId: e.contractId,
             ledger: e.ledger,
@@ -163,13 +164,13 @@ export async function runIndexer() {
         });
       }
 
-      console.log(`Indexed ledgers ${cursor}-${end}: total=${res.events.length}, matched=${matched.length}`);
+      // console.log(`Indexed ledgers ${cursor}-${end}: total=${res.events.length}, matched=${matched.length}`);
       // todo : check events length > 10000 then reset cursor
 
       // Wait at RPC head to avoid out-of-range spam
       if (res.latestLedger && end >= res.latestLedger) {
         console.log(`Reached RPC head at ledger ${res.latestLedger}, waiting for new block...`);
-        await waitForNewLedger(res.latestLedger);
+        await waitForNewLedger(res.latestLedger, net);
       }
 
       cursor = end + 1;
@@ -181,10 +182,44 @@ export async function runIndexer() {
   }
 }
 
-async function waitForNewLedger(lastLedger: number) {
+// export async function runIndexer(net: NetworkConfig) {
+//   let cursor = net.startLedger;
+
+//   while (true) {
+//     try {
+//       const res = await getEventsRange(net.rpc, cursor, cursor + 199);
+
+//       if (res.events.length) {
+//         await prisma.sorobanEvent.createMany({
+//           data: res.events.map(e => ({
+//             network: net.name,   // 🔥 important
+//             txHash: e.txHash,
+//             contractId: e.contractId,
+//             ledger: e.ledger,
+//             topicSignature: e.topicSignature,
+//             topics: e.topics,
+//             data: e.data,
+//           })),
+//           skipDuplicates: true,
+//         });
+
+//       }
+
+//       cursor += 200;
+
+//       await delay(200);
+
+//     } catch (e) {
+//       console.error(`[${net.name}] error`, e);
+//       await delay(1000);
+//     }
+//   }
+// }
+
+async function waitForNewLedger(lastLedger: number, network: NetworkConfig) {
   for (;;) {
     await sleep(2000);
-    const latest = await getLatestLedger();
+    const latest = await getLatestLedger(network);
     if (latest > lastLedger) {
       console.log(`New ledger ${latest} detected, resuming...`);
       return;

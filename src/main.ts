@@ -1,6 +1,10 @@
+import { NETWORKS } from './config';
 import { runIndexer } from './indexer';
 
-runIndexer().catch(err => {
-  console.error('Indexer failed:', err);
-  process.exit(1);
-});
+async function main() {
+  await Promise.all(
+    NETWORKS.map(net => runIndexer(net))
+  );
+}
+
+main();

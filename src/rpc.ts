@@ -1,7 +1,6 @@
 // src/rpc.ts
 import fetch from 'node-fetch';
 import { xdr, scValToNative } from '@stellar/stellar-sdk';
-import { CFG } from './config';
 import type { DecodedEvent } from './handlers';
 import { prettyScVal } from './utils/prettyScVal';
 
@@ -90,6 +89,7 @@ function toSigPiece(v: any): string {
  * Filtering by topic/contract is done later in code via handlers.
  */
 export async function getEventsRange(
+  rpcUrl: string,
   startLedger: number,
   endLedger: number
 ): Promise<GetEventsResult> {
@@ -113,7 +113,7 @@ export async function getEventsRange(
     // console.dir({ filters: [] }, { depth: null });
   }
 
-  const res = await fetch(CFG.rpc, {
+  const res = await fetch(rpcUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(reqBody),
@@ -123,7 +123,7 @@ export async function getEventsRange(
   try {
     raw = await res.json();
   } catch {
-    console.error('RPC non-JSON response', { status: res.status });
+    if (DEBUG) console.error('RPC non-JSON response', rpcUrl, { status: res.status });
     return { events: [], latestLedger: 0 };
   }
 
@@ -183,7 +183,7 @@ export async function getEventsRange(
   });
 
   if (DEBUG) {
-    console.log('RPC getEvents response', {
+    console.log('RPC getEvents response', rpcUrl, {
       latestLedger: Number(result.latestLedger || 0),
       eventsCount: events.length,
     });

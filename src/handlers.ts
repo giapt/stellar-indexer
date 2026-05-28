@@ -1,4 +1,5 @@
 import { Address, nativeToScVal } from '@stellar/stellar-sdk';
+import { NetworkConfig } from './config';
 
 export enum StellarHandlerKind {
   Event = 'Event'
@@ -10,7 +11,7 @@ export type EventFilter = {
 };
 
 export type EventHandlerDef = {
-  handler: (ev: DecodedEvent) => Promise<void> | void;  // your function
+  handler: (ev: DecodedEvent, net: NetworkConfig) => Promise<void> | void;  // your function
   kind: StellarHandlerKind.Event;
   filter: EventFilter;
 };

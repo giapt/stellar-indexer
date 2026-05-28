@@ -5,16 +5,16 @@ import {
   FeeBumpTransaction,
   Transaction
 } from '@stellar/stellar-sdk';
-import { CFG } from '../config';
 import path from "node:path";
 import fs from 'fs/promises';
 import initWasm, { decode } from "@stellar/stellar-xdr-json";
+import { NetworkConfig } from '../config';
 type TransactionResp = {
     timestamp: string;
     envelopeXDR: string;
 }
-async function getTransactionEnvelopeXDR(txHash: string): Promise<TransactionResp> {
-  const res = await fetch(`${CFG.horizon}/transactions/${txHash}`);
+async function getTransactionEnvelopeXDR(txHash: string, net: NetworkConfig): Promise<TransactionResp> {
+  const res = await fetch(`${net.horizon}/transactions/${txHash}`);
   if (!res.ok) throw new Error(`Horizon tx fetch failed: ${res.status}`);
   const j = await res.json() as any;
   // console.log('Transaction fetched:', j);
@@ -114,8 +114,8 @@ type DecodedResp = {
   envelopeXdr: string,
 };
 
-export async function decodeEnvelopeForTx(txHash: string): Promise<DecodedResp> {
-  const { envelopeXDR, timestamp } = await getTransactionEnvelopeXDR(txHash);
+export async function decodeEnvelopeForTx(txHash: string, net: NetworkConfig): Promise<DecodedResp> {
+  const { envelopeXDR, timestamp } = await getTransactionEnvelopeXDR(txHash, net);
   const keyFilePath = path.join(__dirname, "../../stellar_xdr_json_bg.wasm");
   const wasmBinary = await fs.readFile(keyFilePath);
 await initWasm(wasmBinary);

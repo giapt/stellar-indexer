@@ -44,7 +44,6 @@ export async function getDepositDetails({
     .build();
   
   const xdr = tx.toXDR();
-  console.log('get_deposit_details tx XDR:', xdr);
 
   // Simulate (read-only; nothing is submitted)
   const sim = await server.simulateTransaction(tx);

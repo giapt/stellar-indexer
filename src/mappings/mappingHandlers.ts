@@ -4,12 +4,10 @@ import {
 import { decodeEnvelopeForTx } from '../utils/tx-utils';
 import { prisma } from '../prismaConfig'; // Ensure you have a Prisma client instance
 import { getMetadata, getMetadataLpToken, getMetadataNft } from '../utils/metadata';
-import {
-  Networks,
-} from "@stellar/stellar-sdk";
+
 import { getDepositDetails } from '../utils/contract';
 import { getLockedTokenFromJson, getValueFromJson } from '../utils/json-helper';
-import { SOROBAN_RPC_URL } from '../common/chains';
+import { NetworkConfig } from '../config';
 
 const DEBUG = process.env.DEBUG === 'true';
 const PUBLIC_KEY = process.env.PUBLIC_KEY || "GBXY232X43NSRHK35R4IGV5CTG3EGI6YWZ2GUA3WGPVYN6TWTW5P55VG";
@@ -17,10 +15,10 @@ const PUBLIC_KEY2 = "GBWCJP6FZLGKLPD64F6CK4ROZUZFUCXKPTGA65JBXENGPMMBAI2GW4QB";
 
 
 // ==== Your handlers ====
-export async function handleMintEvent(ev: DecodedEvent) {
-  console.log('[Mint]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
+export async function handleMintEvent(ev: DecodedEvent, net: NetworkConfig) {
+  if (DEBUG) console.log('[Mint]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, net.name);
   try {
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
     const constructorArgs =
     data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.create_contract_v2?.constructor_args;
     let name = 'Unknown';
@@ -56,14 +54,14 @@ export async function handleMintEvent(ev: DecodedEvent) {
         sequence: ev.ledger,
         owner: ev.data,
         timestamp: BigInt(timestamp), // Convert to BigInt if needed
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
         name,
         symbol,
         decimals,
         totalSupply,
         ipfs,
         envelopeXdr,
-        id: `${ev.contractId}-stellar-testnet`,
+        id: `${ev.contractId}-${net.name}`,
       }
     });
 
@@ -72,44 +70,44 @@ export async function handleMintEvent(ev: DecodedEvent) {
   }
 }
 
-export async function handleUpdateMetadataEvent(ev: DecodedEvent) {
-  console.log('[UpdateMetadata]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
+export async function handleUpdateMetadataEvent(ev: DecodedEvent, net: NetworkConfig) {
+  if (DEBUG) console.log('[UpdateMetadata]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
 }
 
-export async function handleLpDepositEvent(ev: DecodedEvent) {
-  console.log('[LPDeposit]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+export async function handleLpDepositEvent(ev: DecodedEvent, net: NetworkConfig) {
+  if (DEBUG) console.log('[LPDeposit]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
     // console.log('[LPDeposit] decoded envelope XDR:', envelopeXdr);
     const args =
     data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
-    console.log('[LPDeposit] args:', args);
+    // console.log('[LPDeposit] args:', args);
     // const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[1]?.contract_data?.key?.vec;
     // const depositId = contractData?.[1]?.u32 || 0;
     const lockIds = getLockedTokenFromJson(data);
-    console.log("[Deposit] locks:", lockIds);
+    // if (DEBUG) console.log("[Deposit] locks:", lockIds);
     const depositId = lockIds[0] || 0;
-    console.log('[LPDeposit] depositId:', depositId);
+    // console.log('[LPDeposit] depositId:', depositId);
 
     const tokenMetadata = await getMetadataLpToken(
-      process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
-      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      net.rpc,
+      net.passphrase,
       args?.[1]?.address,
       PUBLIC_KEY
     );
 
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
-      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      rpcUrl: net.rpc,
+      networkPassphrase: net.passphrase,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
       depositId: depositId,
     });
-    console.log('[LPDeposit] depositDetail:', depositDetail);
+    // console.log('[LPDeposit] depositDetail:', depositDetail);
 
     await prisma.lpDeposits.create({
       data: {
-        id: `${depositId.toString()}-lp-deposit-stellar-testnet`,
+        id: `${depositId.toString()}-lp-deposit-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         senderAddress: args?.[0]?.address || '',
@@ -127,7 +125,7 @@ export async function handleLpDepositEvent(ev: DecodedEvent) {
         token_decimals: tokenMetadata.decimals,
         token_ipfs: "",
         token_owner: "",
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
         deposit_withdrawn: depositDetail[4],
         deposit_tokenId: depositDetail[5] || BigInt(0),
         deposit_isNFT: depositDetail[6],
@@ -137,7 +135,7 @@ export async function handleLpDepositEvent(ev: DecodedEvent) {
     });
     await prisma.depositDetail.create({
       data: {
-        id: `${depositId.toString()}-stellar-testnet`,
+        id: `${depositId.toString()}-${net.name}`,
         lockContractAddress: ev.contractId,
         depositId: depositId.toString(),
         tokenAddress: args?.[1]?.address || '',
@@ -150,7 +148,7 @@ export async function handleLpDepositEvent(ev: DecodedEvent) {
         token_decimals: tokenMetadata.decimals,
         token_ipfs: "",
         token_owner: "",
-        network: 'stellar-testnet',
+        network: net.name,
         withdrawn: depositDetail[4],
         tokenId: depositDetail[5] || BigInt(0),
         isNFT: depositDetail[6],
@@ -164,33 +162,33 @@ export async function handleLpDepositEvent(ev: DecodedEvent) {
   }
 }
 
-export async function handleNftDepositEvent(ev: DecodedEvent) {
-  console.log('[NFTDeposit]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+export async function handleNftDepositEvent(ev: DecodedEvent, net: NetworkConfig) {
+  if (DEBUG) console.log('[NFTDeposit]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
     // console.log('[Deposit] decoded envelope XDR:', envelopeXdr);
     // console.log('[Deposit] decoded envelope', ev.contractId, data);
     const args =
     data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
-    console.log('[Deposit] args:', args);
+    // if (DEBUG) console.log('[Deposit] args:', args);
     // const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[1]?.contract_data?.key?.vec;
     // const depositId = contractData?.[1]?.u32 || 0;
     // console.log('[Deposit] depositId:', depositId);
     const lockIds = getLockedTokenFromJson(data, "LockedNft");
     // console.log("[Deposit] locks:", lockIds);
     const depositId = lockIds[0] || 0;
-    console.log('[LPDeposit] depositId:', depositId);
+    // if (DEBUG) console.log('[LPDeposit] depositId:', depositId);
 
     const nftMetadata = await getMetadataNft(
-      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
-      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      net.rpc,
+      net.passphrase,
       args?.[1]?.address,
       PUBLIC_KEY
     );
 
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
-      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      rpcUrl: net.rpc,
+      networkPassphrase: net.passphrase,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
       depositId: depositId,
@@ -198,7 +196,7 @@ export async function handleNftDepositEvent(ev: DecodedEvent) {
     // console.log('[NFTDeposit] depositDetail:', depositDetail);
     await prisma.nftDeposits.create({
       data: {
-        id: `${depositId.toString()}-nft-deposit-stellar-testnet`,
+        id: `${depositId.toString()}-nft-deposit-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         senderAddress: args?.[0]?.address || '',
@@ -215,7 +213,7 @@ export async function handleNftDepositEvent(ev: DecodedEvent) {
         nft_symbol: nftMetadata.symbol,
         nft_ipfs: "",
         nft_owner: args?.[0]?.address || '',
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
         deposit_withdrawn: depositDetail[4],
         deposit_tokenId: depositDetail[5] || BigInt(0),
         deposit_isNFT: depositDetail[6],
@@ -226,7 +224,7 @@ export async function handleNftDepositEvent(ev: DecodedEvent) {
     
     await prisma.depositDetail.create({
       data: {
-        id: `${depositId.toString()}-stellar-testnet`,
+        id: `${depositId.toString()}-${net.name}`,
         lockContractAddress: ev.contractId,
         depositId: depositId.toString(),
         tokenAddress: args?.[1]?.address || '',
@@ -239,7 +237,7 @@ export async function handleNftDepositEvent(ev: DecodedEvent) {
         token_decimals: 0,
         token_ipfs: "",
         token_owner: "",
-        network: 'stellar-testnet',
+        network: net.name,
         withdrawn: depositDetail[4],
         tokenId: depositDetail[5] || BigInt(0),
         isNFT: depositDetail[6],
@@ -253,21 +251,21 @@ export async function handleNftDepositEvent(ev: DecodedEvent) {
   }
 }
 
-export async function handleDepositEvent(ev: DecodedEvent) {
+export async function handleDepositEvent(ev: DecodedEvent, net: NetworkConfig) {
    
-  console.log('[Deposit]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+  if (DEBUG) console.log('[Deposit]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
     // console.log('[Deposit] decoded envelope XDR:', envelopeXdr);
     // console.log('[Deposit] decoded envelope', ev.contractId, data);
     const function_name = data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.function_name;
     // console.log('[Deposit] function_name:', function_name);
     const lockIds = getLockedTokenFromJson(data);
-    if (DEBUG) console.log("[Deposit] locks:", lockIds);
+    // if (DEBUG) console.log("[Deposit] locks:", lockIds);
     const args =
     data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
     //to do fix check args in split and create new
-    if (DEBUG) console.log('[Deposit] args:', args);
+    // if (DEBUG) console.log('[Deposit] args:', args);
 
     let depositId = 0;
     if (function_name === 'lock_token') {
@@ -275,7 +273,7 @@ export async function handleDepositEvent(ev: DecodedEvent) {
     } else {
       depositId = lockIds[1];
     }
-    if (DEBUG) console.log('[Deposit] depositId:', depositId);
+    // if (DEBUG) console.log('[Deposit] depositId:', depositId);
     const tokenAddress= ev.data[0];
     const withdrawalAddress= ev.data[1];
     const amount= ev.data[2];
@@ -291,23 +289,23 @@ export async function handleDepositEvent(ev: DecodedEvent) {
     const lockContractAddress = ev.contractId;
 
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
-      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      rpcUrl: net.rpc,
+      networkPassphrase: net.passphrase,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
       depositId: depositId,
     });
     if (isLP) {
-      console.log('[Deposit] Detected LP token deposit, fetching LP metadata');
+      if (DEBUG) console.log('[Deposit] Detected LP token deposit, fetching LP metadata');
       const tokenMetadata = await getMetadataLpToken(
-        process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
-        process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+        net.rpc,
+        net.passphrase,
         args?.[1]?.address,
         PUBLIC_KEY
       );
       await prisma.lpDeposits.create({
       data: {
-        id: `${depositId.toString()}-lp-deposit-stellar-testnet`,
+        id: `${depositId.toString()}-lp-deposit-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         senderAddress: args?.[0]?.address || '',
@@ -325,7 +323,7 @@ export async function handleDepositEvent(ev: DecodedEvent) {
         token_decimals: tokenMetadata.decimals,
         token_ipfs: "",
         token_owner: "",
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
         deposit_withdrawn: depositDetail[4],
         deposit_tokenId: depositDetail[5] || BigInt(0),
         deposit_isNFT: depositDetail[6],
@@ -337,20 +335,20 @@ export async function handleDepositEvent(ev: DecodedEvent) {
     }
     // console.log('[Deposit] depositDetail:', depositDetail);
     const deposit = await prisma.deposits.findUnique({
-      where: { id: `${depositId.toString()}-stellar-testnet` },
+      where: { id: `${depositId.toString()}-${net.name}` },
       // todo update when network changes
     });
     
     const tokenMetadata = await getMetadata(
-      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
-      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      net.rpc,
+      net.passphrase,
       tokenAddress,
       PUBLIC_KEY
     );
 
     if (deposit) {
       await prisma.deposits.update({
-        where: { id: `${depositId.toString()}-stellar-testnet` },
+        where: { id: `${depositId.toString()}-${net.name}` },
         data: {
           blockHeight: ev.ledger,
         sequence: ev.ledger,
@@ -369,7 +367,7 @@ export async function handleDepositEvent(ev: DecodedEvent) {
         token_decimals: tokenMetadata.decimals,
         token_ipfs: tokenMetadata.metadata,
         token_owner: tokenMetadata.owner,
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
         deposit_withdrawn: depositDetail[4],
         deposit_tokenId: depositDetail[5] || BigInt(0),
         deposit_isNFT: depositDetail[6],
@@ -381,7 +379,7 @@ export async function handleDepositEvent(ev: DecodedEvent) {
 
     await prisma.deposits.create({
       data: {
-        id: `${depositId.toString()}-stellar-testnet`,
+        id: `${depositId.toString()}-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         senderAddress: args?.[0]?.address || '',
@@ -399,7 +397,7 @@ export async function handleDepositEvent(ev: DecodedEvent) {
         token_decimals: tokenMetadata.decimals,
         token_ipfs: tokenMetadata.metadata,
         token_owner: tokenMetadata.owner,
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
         deposit_withdrawn: depositDetail[4],
         deposit_tokenId: depositDetail[5] || BigInt(0),
         deposit_isNFT: depositDetail[6],
@@ -410,7 +408,7 @@ export async function handleDepositEvent(ev: DecodedEvent) {
   }
     await prisma.depositDetail.create({
       data: {
-        id: `${depositId.toString()}-stellar-testnet`,
+        id: `${depositId.toString()}-${net.name}`,
         lockContractAddress: ev.contractId,
         depositId: depositId.toString(),
         tokenAddress: ev.data[0] || '',
@@ -423,7 +421,7 @@ export async function handleDepositEvent(ev: DecodedEvent) {
         token_decimals: tokenMetadata.decimals,
         token_ipfs: "",
         token_owner: "",
-        network: 'stellar-testnet',
+        network: net.name,
         withdrawn: depositDetail[4],
         tokenId: depositDetail[5] || BigInt(0),
         isNFT: depositDetail[6],
@@ -438,31 +436,31 @@ export async function handleDepositEvent(ev: DecodedEvent) {
 
 }
 
-export async function handleTransferLockEvent(ev: DecodedEvent) {
-  console.log('[TransferLock]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+export async function handleTransferLockEvent(ev: DecodedEvent, net: NetworkConfig) {
+  if (DEBUG) console.log('[TransferLock]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
     // console.log('[TransferLock] decoded envelope XDR:', envelopeXdr);
     const newOwner = ev.data[2];
     const depositId = ev.data[0];
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
-      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      rpcUrl: net.rpc,
+      networkPassphrase: net.passphrase,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
       depositId: depositId,
     });
     const deposit = await prisma.depositDetail.findUnique({
-      where: { id: `${depositId.toString()}-stellar-testnet` },
+      where: { id: `${depositId.toString()}-${net.name}` },
       // todo update when network changes
     });
     if (!deposit) {
       console.log(`[TransferLock] DepositDetail id ${depositId.toString()} not found, creating new record.`);
       // If deposit not found, create it first
-      await createDepositDetail(depositId, ev.contractId);
+      await createDepositDetail(depositId, ev.contractId, net);
     } else {
       await prisma.depositDetail.update({
-        where: { id: `${depositId.toString()}-stellar-testnet` },
+        where: { id: `${depositId.toString()}-${net.name}` },
         data: {
           withdrawalAddress: newOwner,
         }
@@ -470,7 +468,7 @@ export async function handleTransferLockEvent(ev: DecodedEvent) {
     }
     await prisma.transferLocks.create({
       data: {
-        id: `${ev.txHash}-stellar-testnet`,
+        id: `${ev.txHash}-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         lockContractAddress: ev.contractId,
@@ -478,7 +476,7 @@ export async function handleTransferLockEvent(ev: DecodedEvent) {
         receiverAddress: newOwner,
         txHash: ev.txHash,
         timestamp: BigInt(timestamp), // Convert to BigInt if needed
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
       }
     });
   } catch (error) {
@@ -486,15 +484,15 @@ export async function handleTransferLockEvent(ev: DecodedEvent) {
   }
 }
 
-export async function handleSplitLockEvent(ev: DecodedEvent) {
-  console.log('[SplitLock]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
-  const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+export async function handleSplitLockEvent(ev: DecodedEvent, net: NetworkConfig) {
+  if (DEBUG) console.log('[SplitLock]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+  const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
   try {
-    console.log('Update deposit id:', ev.data[0]);
+    // console.log('Update deposit id:', ev.data[0]);
     const depositId = ev.data[0];
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
-      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      rpcUrl: net.rpc,
+      networkPassphrase: net.passphrase,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
       depositId: depositId,
@@ -502,7 +500,7 @@ export async function handleSplitLockEvent(ev: DecodedEvent) {
     
     await prisma.lockSplits.create({
       data: {
-        id: `${ev.txHash}-stellar-testnet`,
+        id: `${ev.txHash}-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         lockContractAddress: ev.contractId,
@@ -512,22 +510,22 @@ export async function handleSplitLockEvent(ev: DecodedEvent) {
         newSplitLockAmount: ev.data[3] || "0",
         txHash: ev.txHash,
         timestamp: BigInt(timestamp), // Convert to BigInt if needed
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
       }
     });
 
     const deposit = await prisma.depositDetail.findUnique({
-      where: { id: `${depositId.toString()}-stellar-testnet` },
+      where: { id: `${depositId.toString()}-${net.name}` },
       // todo update when network changes
     });
 
     if (!deposit) {
       console.log(`[SplitLock] Deposit id ${depositId.toString()} not found, creating new record.`);
       // If deposit not found, create it first
-      await createDepositDetail(depositId, ev.contractId);
+      await createDepositDetail(depositId, ev.contractId, net);
     } else {
       await prisma.depositDetail.update({
-        where: { id: `${depositId.toString()}-stellar-testnet` },
+        where: { id: `${depositId.toString()}-${net.name}` },
         data: {
           withdrawn: depositDetail[4],
           tokenId: depositDetail[5] || BigInt(0),
@@ -544,16 +542,14 @@ export async function handleSplitLockEvent(ev: DecodedEvent) {
   }
 }
 
-export async function handleNftWithdrawEvent(ev: DecodedEvent) {
-  console.log('[NftWithdraw]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+export async function handleNftWithdrawEvent(ev: DecodedEvent, net: NetworkConfig) {
+  if (DEBUG) console.log('[NftWithdraw]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
-    const passphrase = process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET;
-    const networkTag = passphrase === Networks.PUBLIC ? 'stellar-mainnet' : 'stellar-testnet';
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
     const depositId = ev.data[0];
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
-      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      rpcUrl: net.rpc,
+      networkPassphrase: net.passphrase,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
       depositId: depositId,
@@ -561,21 +557,21 @@ export async function handleNftWithdrawEvent(ev: DecodedEvent) {
     const tokenAddress= ev.data[1];
     const tokenId = BigInt(ev.data[2] || 0);
     const nftMetadata = await getMetadataNft(
-      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
-      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      net.rpc,
+      net.passphrase,
       tokenAddress,
       PUBLIC_KEY2
     );
     await prisma.logNftWithdrawals.create({
       data: {
-        id: `${ev.txHash}-${networkTag}`,
+        id: `${ev.txHash}-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         lockContractAddress: ev.contractId,
         depositId: depositId.toString(),
         txHash: ev.txHash,
         timestamp: BigInt(timestamp), // Convert to BigInt if needed
-        network: networkTag, // Adjust as needed
+        network: net.name, // Adjust as needed
         deposit_withdrawn: depositDetail[4],
         deposit_tokenId: depositDetail[5] || BigInt(0),
         deposit_isNFT: depositDetail[6],
@@ -588,14 +584,14 @@ export async function handleNftWithdrawEvent(ev: DecodedEvent) {
       }
     });
     const deposit = await prisma.depositDetail.findUnique({
-      where: { id: `${depositId.toString()}-${networkTag}` },
+      where: { id: `${depositId.toString()}-${net.name}` },
     });
     if (!deposit) {
       console.log(`[NftWithdraw] Deposit id ${depositId.toString()} not found, creating new record.`);
       // If deposit not found, create it first
       await prisma.depositDetail.create({
       data: {
-        id: `${depositId.toString()}-stellar-testnet`,
+        id: `${depositId.toString()}-${net.name}`,
         lockContractAddress: ev.contractId,
         depositId: depositId.toString(),
         tokenAddress,
@@ -608,7 +604,7 @@ export async function handleNftWithdrawEvent(ev: DecodedEvent) {
         token_decimals: 0,
         token_ipfs: "",
         token_owner: "",
-        network: 'stellar-testnet',
+        network: net.name,
         withdrawn: depositDetail[4],
         tokenId: tokenId,
         isNFT: depositDetail[6],
@@ -619,7 +615,7 @@ export async function handleNftWithdrawEvent(ev: DecodedEvent) {
     } else {
 
       await prisma.depositDetail.update({
-        where: { id: `${depositId.toString()}-${networkTag}` },
+        where: { id: `${depositId.toString()}-${net.name}` },
         data: {
           withdrawn: depositDetail[4],
           tokenId: tokenId,
@@ -636,24 +632,22 @@ export async function handleNftWithdrawEvent(ev: DecodedEvent) {
   }
 }
 
-export async function handleTokenWithdrawEvent(ev: DecodedEvent) {
-  console.log('[TokenWithdraw]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+export async function handleTokenWithdrawEvent(ev: DecodedEvent, net: NetworkConfig) {
+  if (DEBUG) console.log('[TokenWithdraw]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
-    const passphrase = process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET;
-    const networkTag = passphrase === Networks.PUBLIC ? 'stellar-mainnet' : 'stellar-testnet';
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
     const depositId = ev.data[0];
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
-      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      rpcUrl: net.rpc,
+      networkPassphrase: net.passphrase,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
       depositId: depositId,
     });
     const tokenAddress= ev.data[1];
     const tokenMetadata = await getMetadataLpToken(
-      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
-      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      net.rpc,
+      net.passphrase,
       tokenAddress,
       PUBLIC_KEY
     );
@@ -661,14 +655,14 @@ export async function handleTokenWithdrawEvent(ev: DecodedEvent) {
 
     await prisma.logTokenWithdrawals.create({
       data: {
-        id: `${ev.txHash}-${networkTag}`,
+        id: `${ev.txHash}-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         lockContractAddress: ev.contractId,
         depositId: depositId.toString(),
         txHash: ev.txHash,
         timestamp: BigInt(timestamp), // Convert to BigInt if needed
-        network: networkTag, // Adjust as needed
+        network: net.name, // Adjust as needed
         deposit_withdrawn: depositDetail[4],
         deposit_tokenId: depositDetail[5] || BigInt(0),
         deposit_isNFT: depositDetail[6],
@@ -680,14 +674,14 @@ export async function handleTokenWithdrawEvent(ev: DecodedEvent) {
       }
     });
     const deposit = await prisma.depositDetail.findUnique({
-      where: { id: `${depositId.toString()}-${networkTag}` },
+      where: { id: `${depositId.toString()}-${net.name}` },
     });
     if (!deposit) {
       console.log(`[TokenWithdraw] Deposit id ${depositId.toString()} not found, creating new record.`);
       // If deposit not found, create it first
       await prisma.depositDetail.create({
       data: {
-        id: `${depositId.toString()}-stellar-testnet`,
+        id: `${depositId.toString()}-${net.name}`,
         lockContractAddress: ev.contractId,
         depositId: depositId.toString(),
         tokenAddress,
@@ -704,7 +698,7 @@ export async function handleTokenWithdrawEvent(ev: DecodedEvent) {
         token_decimals: 0,
         token_ipfs: "",
         token_owner: "",
-        network: 'stellar-testnet',
+        network: net.name,
         withdrawn: depositDetail[4],
         tokenId: depositDetail[5] || BigInt(0),
         isNFT: depositDetail[6],
@@ -715,7 +709,7 @@ export async function handleTokenWithdrawEvent(ev: DecodedEvent) {
     } else {
 
       await prisma.depositDetail.update({
-        where: { id: `${depositId.toString()}-${networkTag}` },
+        where: { id: `${depositId.toString()}-${net.name}` },
         data: {
           withdrawn: depositDetail[4],
           tokenId: depositDetail[5] || BigInt(0),
@@ -732,30 +726,30 @@ export async function handleTokenWithdrawEvent(ev: DecodedEvent) {
   }
 }
 
-export async function handleExtendLockDurationEvent(ev: DecodedEvent) {
-  console.log('[ExtendLockDuration]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+export async function handleExtendLockDurationEvent(ev: DecodedEvent, net: NetworkConfig) {
+  if (DEBUG) console.log('[ExtendLockDuration]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
     const depositId = ev.data[0];
     const newUnlockTime = BigInt(ev.data[1] || 0);
     const depositDetail = await getDepositDetails({
-      rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
-      networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      rpcUrl: net.rpc,
+      networkPassphrase: net.passphrase,
       contractId: ev.contractId,
       sourcePublicKey: PUBLIC_KEY,
       depositId: depositId,
     });
     const deposit = await prisma.depositDetail.findUnique({
-      where: { id: `${depositId.toString()}-stellar-testnet` },
+      where: { id: `${depositId.toString()}-${net.name}` },
       // todo update when network changes
     });
     if (!deposit) {
       console.log(`[ExtendLockDuration] Deposit id ${depositId.toString()} not found, creating new record.`);
       // If deposit not found, create it first
-      await createDepositDetail(depositId, ev.contractId);
+      await createDepositDetail(depositId, ev.contractId, net);
     }
     await prisma.depositDetail.update({
-      where: { id: `${depositId.toString()}-stellar-testnet` },
+      where: { id: `${depositId.toString()}-${net.name}` },
       data: {
         withdrawn: depositDetail[4],
         tokenId: depositDetail[5] || BigInt(0),
@@ -769,7 +763,7 @@ export async function handleExtendLockDurationEvent(ev: DecodedEvent) {
     
     await prisma.lockDurationExtendeds.create({
       data: {
-        id: `${ev.txHash}-stellar-testnet`,
+        id: `${ev.txHash}-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         lockContractAddress: ev.contractId,
@@ -777,7 +771,7 @@ export async function handleExtendLockDurationEvent(ev: DecodedEvent) {
         unlockTime: newUnlockTime,
         txHash: ev.txHash,
         timestamp: BigInt(timestamp), // Convert to BigInt if needed
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
       }
     });
   }
@@ -786,10 +780,10 @@ export async function handleExtendLockDurationEvent(ev: DecodedEvent) {
   }
 }
 
-export async function handleStakingPoolCreatedEvent(ev: DecodedEvent) {
-  console.log('[StakingPoolCreated]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
+export async function handleStakingPoolCreatedEvent(ev: DecodedEvent, net: NetworkConfig) {
+  if (DEBUG) console.log('[StakingPoolCreated]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
   try {
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
     // console.log('[StakingPoolCreated] decoded envelope XDR:', envelopeXdr);
     // const contractData = data.tx.tx.ext?.v1?.resources?.footprint?.read_write?.[0]?.contract_data?.key?.vec;
     // console.log('[StakingPoolCreated] contractData:', contractData);
@@ -809,20 +803,20 @@ export async function handleStakingPoolCreatedEvent(ev: DecodedEvent) {
     const precision = ev.data[4] || "0";
     const totalReward = ev.data[5] || "0";
     const statkingTokenMetadata = await getMetadata(
-      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
-      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      net.rpc,
+      net.passphrase,
       stakingTokenAddress,
       PUBLIC_KEY
     );
     const rewardTokenMetadata = await getMetadata(
-      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
-      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      net.rpc,
+      net.passphrase,
       rewardTokenAddress,
       PUBLIC_KEY
     );
     await prisma.stakingPools.create({
       data: {
-        id: `${poolId.toString()}-stellar-testnet`,
+        id: `${poolId.toString()}-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         stakingContract: ev.contractId,
@@ -849,7 +843,7 @@ export async function handleStakingPoolCreatedEvent(ev: DecodedEvent) {
         rewardToken_decimals: rewardTokenMetadata.decimals,
         rewardToken_ipfs: rewardTokenMetadata.metadata,
         rewardToken_owner: rewardTokenMetadata.owner,
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
       }
     });
 
@@ -858,10 +852,10 @@ export async function handleStakingPoolCreatedEvent(ev: DecodedEvent) {
   }
 }
 
-export async function handleMultisendTokenEvent(ev: DecodedEvent) {
-  console.log('[MultisendToken]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
+export async function handleMultisendTokenEvent(ev: DecodedEvent, net: NetworkConfig) {
+  if (DEBUG) console.log('[MultisendToken]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
   try {
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
     // console.log('[MultisendToken] decoded envelope XDR:', envelopeXdr);
     const args =
     data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
@@ -875,14 +869,14 @@ export async function handleMultisendTokenEvent(ev: DecodedEvent) {
     // console.log('[MultisendToken] recipients:', recipients);
     // console.log('[MultisendToken] amounts:', amounts);
     const tokenMetadata = await getMetadata(
-      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
-      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      net.rpc,
+      net.passphrase,
       tokenAddress,
       PUBLIC_KEY
     );
     await prisma.multisendTokens.create({
       data: {
-        id: `${ev.txHash}-stellar-testnet`,
+        id: `${ev.txHash}-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         contractAddress: ev.contractId,
@@ -898,7 +892,7 @@ export async function handleMultisendTokenEvent(ev: DecodedEvent) {
         token_decimals: tokenMetadata.decimals,
         token_ipfs: tokenMetadata.metadata,
         token_owner: tokenMetadata.owner,
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
       }
     });
 
@@ -907,10 +901,10 @@ export async function handleMultisendTokenEvent(ev: DecodedEvent) {
   }
 }
 
-export async function handleVestingCreatedEvent(ev: DecodedEvent) {
-  console.log('[VestingCreated]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
+export async function handleVestingCreatedEvent(ev: DecodedEvent, net: NetworkConfig) {
+  if (DEBUG) console.log('[VestingCreated]', ev.ledger, ev.contractId, ev.topicSignature, ev.data);
   try {
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
     // console.log('[VestingCreated] decoded envelope XDR:', envelopeXdr);
     // const args =
     // data.tx.tx.operations?.[0]?.body?.invoke_host_function?.host_function?.invoke_contract?.args;
@@ -920,15 +914,15 @@ export async function handleVestingCreatedEvent(ev: DecodedEvent) {
     // console.log('[VestingCreated] vestingId:', vestingId);
 
     const tokenMetadata = await getMetadata(
-      process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
-      process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+      net.rpc,
+      net.passphrase,
       ev.data[2],
       PUBLIC_KEY
     );
 
     await prisma.vestings.create({
       data: {
-        id: `${ev.data[1].toString()}-stellar-testnet`,
+        id: `${ev.data[1].toString()}-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         factoryContractAddress: ev.contractId,
@@ -948,7 +942,7 @@ export async function handleVestingCreatedEvent(ev: DecodedEvent) {
         token_decimals: tokenMetadata.decimals,
         token_ipfs: tokenMetadata.metadata,
         token_owner: tokenMetadata.owner,
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
       }
     });
 
@@ -957,17 +951,17 @@ export async function handleVestingCreatedEvent(ev: DecodedEvent) {
   }
 }
 
-export async function handleVestingClaimedEvent(ev: DecodedEvent) {
-  console.log('[VestingClaimed]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+export async function handleVestingClaimedEvent(ev: DecodedEvent, net: NetworkConfig) {
+  if (DEBUG) console.log('[VestingClaimed]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
     const vestingAddress = ev.contractId;
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
     let totalClaim = BigInt(0);
     const userVesting = await prisma.userVesting.findFirst({
       where: {
         vestingContractAddress: vestingAddress,
         account: ev.data[0],
-        network: 'stellar-testnet',
+        network: net.name,
       }
     });
     if (!userVesting) {
@@ -975,11 +969,11 @@ export async function handleVestingClaimedEvent(ev: DecodedEvent) {
       console.log(`[VestingClaimed] UserVesting for account ${ev.data[0]} and vesting ${vestingAddress} not found.`);
       await prisma.userVesting.create({
         data: {
-          id: `${ev.txHash}-${ev.data[0]}-stellar-testnet`,
+          id: `${ev.txHash}-${ev.data[0]}-${net.name}`,
           vestingContractAddress: vestingAddress,
           account: ev.data[0],
           totalClaimed: totalClaim.toString(),
-          network: 'stellar-testnet',
+          network: net.name,
         }
       });
     } else {
@@ -988,7 +982,7 @@ export async function handleVestingClaimedEvent(ev: DecodedEvent) {
         where: {
           vestingContractAddress: vestingAddress,
           account: ev.data[0],
-          network: 'stellar-testnet',
+          network: net.name,
         },
         data: {
           totalClaimed: totalClaim.toString(),
@@ -997,7 +991,7 @@ export async function handleVestingClaimedEvent(ev: DecodedEvent) {
     }
     await prisma.vestingClaims.create({
       data: {
-        id: `${ev.txHash}-stellar-testnet`,
+        id: `${ev.txHash}-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         contractAddress: vestingAddress,
@@ -1007,7 +1001,7 @@ export async function handleVestingClaimedEvent(ev: DecodedEvent) {
         userVesting_totalClaimed: totalClaim.toString(),
         txHash: ev.txHash,
         timestamp: BigInt(timestamp), // Convert to BigInt if needed
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
       }
     });
 
@@ -1055,13 +1049,13 @@ async function updateUserPool(network: string, contractId: string, poolIndex: nu
   }
 }
 
-export async function handleStakingClaimEvent(ev: DecodedEvent) {
-  console.log('[StakingClaim]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+export async function handleStakingClaimEvent(ev: DecodedEvent, net: NetworkConfig) {
+  if (DEBUG)console.log('[StakingClaim]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
     await prisma.stakingClaims.create({
       data: {
-        id: `${ev.txHash}-stellar-testnet`,
+        id: `${ev.txHash}-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         contractAddress: ev.contractId,
@@ -1070,22 +1064,22 @@ export async function handleStakingClaimEvent(ev: DecodedEvent) {
         amount: ev.data[1],
         txHash: ev.txHash,
         timestamp: BigInt(timestamp), // Convert to BigInt if needed
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
       }
     });
-    updateUserPool('stellar-testnet', ev.contractId, Number(ev.data[2]), ev.data[1], "0", "0", ev.data[0]);
+    updateUserPool(net.name, ev.contractId, Number(ev.data[2]), ev.data[1], "0", "0", ev.data[0]);
   }  catch (error) {
     console.error('[StakingClaim] Error handling staking claim event:', error);
   }
 }
 
-export async function handleStakingDepositEvent(ev: DecodedEvent) {
+export async function handleStakingDepositEvent(ev: DecodedEvent, net: NetworkConfig) {
   console.log('[StakingDeposit]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
     await prisma.stakingDeposits.create({
       data: {
-        id: `${ev.txHash}-stellar-testnet`,
+        id: `${ev.txHash}-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         contractAddress: ev.contractId,
@@ -1094,22 +1088,22 @@ export async function handleStakingDepositEvent(ev: DecodedEvent) {
         amount: ev.data[1],
         txHash: ev.txHash,
         timestamp: BigInt(timestamp), // Convert to BigInt if needed
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
       }
     });
-    updateUserPool('stellar-testnet', ev.contractId, Number(ev.data[2]), "0", ev.data[1], "0", ev.data[0]);
+    updateUserPool(net.name, ev.contractId, Number(ev.data[2]), "0", ev.data[1], "0", ev.data[0]);
   }  catch (error) {
     console.error('[StakingDeposit] Error handling staking deposit event:', error);
   }
 }
 
-export async function handleStakingWithdrawEvent(ev: DecodedEvent) {
-  console.log('[StakingWithdraw]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
+export async function handleStakingWithdrawEvent(ev: DecodedEvent, net: NetworkConfig) {
+  if (DEBUG) console.log('[StakingWithdraw]', ev.ledger, ev.contractId, ev.topicSignature, ev.data, ev.txHash);
   try {
-    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash);
+    const { data, timestamp, envelopeXdr } = await decodeEnvelopeForTx(ev.txHash, net);
     await prisma.stakingWithdraws.create({
       data: {
-        id: `${ev.txHash}-stellar-testnet`,
+        id: `${ev.txHash}-${net.name}`,
         blockHeight: ev.ledger,
         sequence: ev.ledger,
         contractAddress: ev.contractId,
@@ -1118,28 +1112,28 @@ export async function handleStakingWithdrawEvent(ev: DecodedEvent) {
         amount: ev.data[1],
         txHash: ev.txHash,
         timestamp: BigInt(timestamp), // Convert to BigInt if needed
-        network: 'stellar-testnet', // Adjust as needed
+        network: net.name, // Adjust as needed
       }
     });
-    updateUserPool('stellar-testnet', ev.contractId, Number(ev.data[2]), "0", "0", ev.data[1], ev.data[0]);
+    updateUserPool(net.name, ev.contractId, Number(ev.data[2]), "0", "0", ev.data[1], ev.data[0]);
   }  catch (error) {
     console.error('[StakingWithdraw] Error handling staking withdraw event:', error);
   }
 }
 
-async function createDepositDetail(depositId: number, contractId: string) {
+async function createDepositDetail(depositId: number, contractId: string, net: NetworkConfig) {
   // Check if deposit already exists
-  console.log(`Creating deposit detail for id ${depositId} and contract ${contractId}`);
+  if (DEBUG)console.log(`Creating deposit detail for id ${depositId} and contract ${contractId}`);
   const existing = await prisma.depositDetail.findUnique({
-    where: { id: `${depositId.toString()}-stellar-testnet` },
+    where: { id: `${depositId.toString()}-${net.name}` },
   });
   if (existing) {
     console.log(`Deposit with id ${depositId} already exists.`);
     return;
   }
   const depositDetail = await getDepositDetails({
-    rpcUrl: process.env.SOROBAN_RPC_URL || SOROBAN_RPC_URL.STELLAR_TESTNET,
-    networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+    rpcUrl: net.rpc,
+    networkPassphrase: net.passphrase,
     contractId: contractId,
     sourcePublicKey: PUBLIC_KEY,
     depositId: depositId,
@@ -1150,15 +1144,15 @@ async function createDepositDetail(depositId: number, contractId: string) {
   }
   const tokenAddress = depositDetail[0];
   const tokenMetadata = await getMetadata(
-    process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org',
-    process.env.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET,
+    net.rpc,
+    net.passphrase,
     tokenAddress,
     PUBLIC_KEY
   );
   // Create new deposit
   await prisma.depositDetail.create({
     data: {
-      id: `${depositId.toString()}-stellar-testnet`,
+      id: `${depositId.toString()}-${net.name}`,
       lockContractAddress: contractId,
       depositId: depositId.toString(),
       tokenAddress: tokenAddress || '',
@@ -1171,7 +1165,7 @@ async function createDepositDetail(depositId: number, contractId: string) {
       token_decimals: tokenMetadata.decimals,
       token_ipfs: tokenMetadata.metadata,
       token_owner: tokenMetadata.owner,
-      network: 'stellar-testnet',
+      network: net.name,
       withdrawn: depositDetail[4],
       tokenId: depositDetail[5] || BigInt(0),
       isNFT: depositDetail[6],
