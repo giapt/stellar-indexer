@@ -6,8 +6,8 @@ import {
   eventMatchesHandler, DecodedEvent
 } from './handlers';
 // import { jsonPrismaSafe, toDbBigInt } from './utils/json-safe';
-import { handleDepositEvent, handleUpdateMetadataEvent, 
-  handleMintEvent, handleStakingPoolCreatedEvent, 
+import { handleDepositEvent, handleUpdateMetadataEvent,
+  handleMintEvent, handleStakingPoolCreatedEvent,
   handleMultisendTokenEvent, handleVestingCreatedEvent,
   handleLpDepositEvent, handleNftDepositEvent,
   handleTransferLockEvent, handleSplitLockEvent,
@@ -19,8 +19,32 @@ import { handleDepositEvent, handleUpdateMetadataEvent,
 import { prisma } from './prismaConfig'; // Ensure you have a Prisma client instance
 import { NetworkConfig } from './config';
 
-const CHUNK = 100;
+// Simple concurrency limiter (avoids ESM-only p-limit dependency)
+function createConcurrencyLimit(concurrency: number) {
+  let active = 0;
+  const queue: (() => void)[] = [];
+  function next() {
+    active--;
+    if (queue.length > 0) {
+      const resolve = queue.shift()!;
+      resolve();
+    }
+  }
+  return async function limit<T>(fn: () => Promise<T>): Promise<T> {
+    if (active >= concurrency) {
+      await new Promise<void>(resolve => queue.push(resolve));
+    }
+    active++;
+    try {
+      return await fn();
+    } finally {
+      next();
+    }
+  };
+}
 
+const CHUNK = 100;
+const HANDLER_CONCURRENCY = 10; // max concurrent handler executions per chunk
 
 const HANDLERS: EventHandlerDef[] = [
   {
@@ -137,15 +161,23 @@ export async function runIndexer(net: NetworkConfig) {
         continue;
       }
 
-      // Match events against handlers
+      // Match events against handlers — process concurrently with bounded parallelism
+      const limit = createConcurrencyLimit(HANDLER_CONCURRENCY);
       const matched: DecodedEvent[] = [];
+      const handlerPromises: Promise<void>[] = [];
       for (const ev of res.events) {
         for (const def of HANDLERS) {
           if (eventMatchesHandler(ev, def)) {
             matched.push(ev);
-            await def.handler(ev, net); // run handler
-            break;                 // stop at first match; remove if multiple handlers can apply
+            handlerPromises.push(limit(async () => { await def.handler(ev, net); }));
+            break; // stop at first match; remove if multiple handlers can apply
           }
+        }
+      }
+      const results = await Promise.allSettled(handlerPromises);
+      for (const r of results) {
+        if (r.status === 'rejected') {
+          console.error(`Handler error in chunk ${cursor}-${end}:`, r.reason);
         }
       }
 

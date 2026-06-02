@@ -114,14 +114,24 @@ type DecodedResp = {
   envelopeXdr: string,
 };
 
+// Initialize WASM once and cache the promise
+let wasmReady: Promise<void> | null = null;
+function ensureWasm(): Promise<void> {
+  if (!wasmReady) {
+    wasmReady = (async () => {
+      const keyFilePath = path.join(__dirname, "../../stellar_xdr_json_bg.wasm");
+      const wasmBinary = await fs.readFile(keyFilePath);
+      await initWasm(wasmBinary);
+    })();
+  }
+  return wasmReady;
+}
+
 export async function decodeEnvelopeForTx(txHash: string, net: NetworkConfig): Promise<DecodedResp> {
   const { envelopeXDR, timestamp } = await getTransactionEnvelopeXDR(txHash, net);
-  const keyFilePath = path.join(__dirname, "../../stellar_xdr_json_bg.wasm");
-  const wasmBinary = await fs.readFile(keyFilePath);
-await initWasm(wasmBinary);
-    const decoded = decode('TransactionEnvelope', envelopeXDR);
-    const data = JSON.parse(decoded);
-
+  await ensureWasm();
+  const decoded = decode('TransactionEnvelope', envelopeXDR);
+  const data = JSON.parse(decoded);
 
   return {
     data,
