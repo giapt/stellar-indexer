@@ -35,12 +35,10 @@ export async function getMetadataNft(
 ): Promise<NftViewResult> {
   const server = new rpc.Server(rpcUrl);
   const contract = new Contract(contractId);
+  const account = await server.getAccount(sourcePublicKey);
 
   // helper to build & simulate a single-op view call
   const simulateView = async (fn: string, ...args: any[]) => {
-    // for simulation you still need any valid account as source
-    const account = await server.getAccount(sourcePublicKey);
-
     const tx = new TransactionBuilder(account, {
       fee: "100",
       networkPassphrase,
@@ -77,12 +75,10 @@ export async function getMetadataLpToken(
 ): Promise<LPTokenViewResult> {
   const server = new rpc.Server(rpcUrl);
   const contract = new Contract(contractId);
+  const account = await server.getAccount(sourcePublicKey);
 
   // helper to build & simulate a single-op view call
   const simulateView = async (fn: string, ...args: any[]) => {
-    // for simulation you still need any valid account as source
-    const account = await server.getAccount(sourcePublicKey);
-
     const tx = new TransactionBuilder(account, {
       fee: "100",
       networkPassphrase,
@@ -116,11 +112,11 @@ export async function getMetadata(
   rpcUrl: string,
   networkPassphrase: string,
   contractId: string,
-  sourcePublicKey: string
+  sourcePublicKey: string,
+  network: string = 'stellar-testnet'
 ): Promise<ViewResult> {
   const teamFinanceToken = await prisma.teamFinanceTokens.findUnique({
-    where: { id: `${contractId}-stellar-testnet` },
-    // todo update when network changes
+    where: { id: `${contractId}-${network}` },
   });
   if (teamFinanceToken) {
     return {
@@ -133,8 +129,7 @@ export async function getMetadata(
     };
   }
   const tokenDb = await prisma.token.findUnique({
-    where: { id: `${contractId}-stellar-testnet` },
-    // todo update when network changes
+    where: { id: `${contractId}-${network}` },
   });
   if (tokenDb) {
     return {
@@ -154,7 +149,7 @@ export async function getMetadata(
   );
   await prisma.token.create({
     data: {
-      id: `${contractId}-stellar-testnet`,
+      id: `${contractId}-${network}`,
       address: contractId,
       name: data.name,
       symbol: data.symbol,
@@ -162,7 +157,7 @@ export async function getMetadata(
       totalSupply: data.totalSupply,
       ipfs: data.metadata,
       owner: data.owner,
-      network: 'stellar-testnet', // Adjust as needed
+      network: network,
     }
   });
   return data;
@@ -176,12 +171,10 @@ export async function fetchTokenMetadata(
 ): Promise<ViewResult> {
   const server = new rpc.Server(rpcUrl);
   const contract = new Contract(contractId);
+  const account = await server.getAccount(sourcePublicKey);
 
   // helper to build & simulate a single-op view call
   const simulateView = async (fn: string, ...args: any[]) => {
-    // for simulation you still need any valid account as source
-    const account = await server.getAccount(sourcePublicKey);
-
     const tx = new TransactionBuilder(account, {
       fee: "100",
       networkPassphrase,

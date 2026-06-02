@@ -127,15 +127,26 @@ function ensureWasm(): Promise<void> {
   return wasmReady;
 }
 
+// In-memory cache for decoded envelopes by (txHash, networkName)
+const envelopeCache = new Map<string, DecodedResp>();
+
 export async function decodeEnvelopeForTx(txHash: string, net: NetworkConfig): Promise<DecodedResp> {
+  const cacheKey = `${txHash}-${net.name}`;
+  if (envelopeCache.has(cacheKey)) {
+    return envelopeCache.get(cacheKey)!;
+  }
+
   const { envelopeXDR, timestamp } = await getTransactionEnvelopeXDR(txHash, net);
   await ensureWasm();
   const decoded = decode('TransactionEnvelope', envelopeXDR);
   const data = JSON.parse(decoded);
 
-  return {
+  const result: DecodedResp = {
     data,
     timestamp,
     envelopeXdr: envelopeXDR
   };
+
+  envelopeCache.set(cacheKey, result);
+  return result;
 }

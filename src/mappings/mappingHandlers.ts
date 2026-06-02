@@ -343,7 +343,8 @@ export async function handleDepositEvent(ev: DecodedEvent, net: NetworkConfig) {
       net.rpc,
       net.passphrase,
       tokenAddress,
-      PUBLIC_KEY
+      PUBLIC_KEY,
+      net.name
     );
 
     if (deposit) {
@@ -806,13 +807,15 @@ export async function handleStakingPoolCreatedEvent(ev: DecodedEvent, net: Netwo
       net.rpc,
       net.passphrase,
       stakingTokenAddress,
-      PUBLIC_KEY
+      PUBLIC_KEY,
+      net.name
     );
     const rewardTokenMetadata = await getMetadata(
       net.rpc,
       net.passphrase,
       rewardTokenAddress,
-      PUBLIC_KEY
+      PUBLIC_KEY,
+      net.name
     );
     await prisma.stakingPools.create({
       data: {
@@ -872,7 +875,8 @@ export async function handleMultisendTokenEvent(ev: DecodedEvent, net: NetworkCo
       net.rpc,
       net.passphrase,
       tokenAddress,
-      PUBLIC_KEY
+      PUBLIC_KEY,
+      net.name
     );
     await prisma.multisendTokens.create({
       data: {
@@ -917,7 +921,8 @@ export async function handleVestingCreatedEvent(ev: DecodedEvent, net: NetworkCo
       net.rpc,
       net.passphrase,
       ev.data[2],
-      PUBLIC_KEY
+      PUBLIC_KEY,
+      net.name
     );
 
     await prisma.vestings.create({
@@ -1067,7 +1072,7 @@ export async function handleStakingClaimEvent(ev: DecodedEvent, net: NetworkConf
         network: net.name, // Adjust as needed
       }
     });
-    updateUserPool(net.name, ev.contractId, Number(ev.data[2]), ev.data[1], "0", "0", ev.data[0]);
+    await updateUserPool(net.name, ev.contractId, Number(ev.data[2]), ev.data[1], "0", "0", ev.data[0]);
   }  catch (error) {
     console.error('[StakingClaim] Error handling staking claim event:', error);
   }
@@ -1091,7 +1096,7 @@ export async function handleStakingDepositEvent(ev: DecodedEvent, net: NetworkCo
         network: net.name, // Adjust as needed
       }
     });
-    updateUserPool(net.name, ev.contractId, Number(ev.data[2]), "0", ev.data[1], "0", ev.data[0]);
+    await updateUserPool(net.name, ev.contractId, Number(ev.data[2]), "0", ev.data[1], "0", ev.data[0]);
   }  catch (error) {
     console.error('[StakingDeposit] Error handling staking deposit event:', error);
   }
@@ -1115,7 +1120,7 @@ export async function handleStakingWithdrawEvent(ev: DecodedEvent, net: NetworkC
         network: net.name, // Adjust as needed
       }
     });
-    updateUserPool(net.name, ev.contractId, Number(ev.data[2]), "0", "0", ev.data[1], ev.data[0]);
+    await updateUserPool(net.name, ev.contractId, Number(ev.data[2]), "0", "0", ev.data[1], ev.data[0]);
   }  catch (error) {
     console.error('[StakingWithdraw] Error handling staking withdraw event:', error);
   }
@@ -1147,7 +1152,8 @@ async function createDepositDetail(depositId: number, contractId: string, net: N
     net.rpc,
     net.passphrase,
     tokenAddress,
-    PUBLIC_KEY
+    PUBLIC_KEY,
+    net.name
   );
   // Create new deposit
   await prisma.depositDetail.create({

@@ -7,6 +7,13 @@ import {
   nativeToScVal,
 } from "@stellar/stellar-sdk";
 
+// Cache rpc.Server instances per URL
+const serverCache = new Map<string, rpc.Server>();
+function getServer(rpcUrl: string): rpc.Server {
+  if (!serverCache.has(rpcUrl)) serverCache.set(rpcUrl, new rpc.Server(rpcUrl));
+  return serverCache.get(rpcUrl)!;
+}
+
 export async function getDepositDetails({
   rpcUrl,
   networkPassphrase,
@@ -20,13 +27,8 @@ export async function getDepositDetails({
   sourcePublicKey: string;
   depositId: number
 }) {
-  // add retry if failed?
-  
-  const server = new rpc.Server(rpcUrl);
-
-  // You still need a valid on-ledger account to build a tx to simulate
+  const server = getServer(rpcUrl);
   const account = await server.getAccount(sourcePublicKey);
-
   const contract = new Contract(contractId);
 
   // Build a single-operation transaction (Soroban requires one invoke per tx)
